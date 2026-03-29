@@ -1,0 +1,31 @@
+# Walkthrough: [show_data.py](file:///c:/HelioX/show_data.py) Output Fix
+
+## Problem
+[show_data.py](file:///c:/HelioX/show_data.py) was displaying data, but the output was cluttered with warnings:
+1. `SecurityWarning: Connecting to 'https://localhost:9200' using TLS with verify_certs=False is insecure`
+2. `Unclosed client session` / `Unclosed connector` from `aiohttp` at the end of the script.
+
+## Root Cause
+1. The `AsyncElasticsearch` client was instantiated with `verify_certs=False`, which triggers a Python `UserWarning` (specifically a `SecurityWarning` from [elasticsearch](file:///c:/HelioX/profiling/clients.py#93-106)).
+2. The `es_client` was never explicitly closed with `await es_client.close()`, leaving the underlying HTTP session open when the script exited.
+
+## Changes Made
+
+### [show_data.py](file:///c:/HelioX/show_data.py)
+
+- **Suppressed TLS Warning**: Added `warnings.filterwarnings("ignore", category=Warning, module="elasticsearch")` to keep the terminal output clean.
+- **Proper Client Cleanup**: Added a `finally:` block to the Elasticsearch try-catch:
+  ```python
+  finally:
+      try:
+          await es_client.close()
+      except Exception:
+          pass
+  ```
+
+## Verification
+
+Ran `python show_data.py` and confirmed the output is completely clean with exit code 0:
+- **Redis**: "Found 0 keys in Redis." (working as expected, no data/no hang)
+- **Elasticsearch**: "Found 12 documents" and correctly prints the JSON of the first 5.
+- No warnings or tracebacks clutter the end of the data.

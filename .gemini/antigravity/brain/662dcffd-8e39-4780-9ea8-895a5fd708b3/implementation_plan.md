@@ -1,0 +1,68 @@
+# HelioX React Frontend Implementation Plan
+
+## Goal Description
+The objective is to build a premium, enterprise-grade React web interface for the HelioX RAG 3.0 system. The UI must allow users (e.g., compliance analysts, legal researchers) to submit queries, view evidence-bound answers with confidence scores, and see the reasoning trace. In addition, users must be able to upload multiple documents, which will be visually represented and simulated as context for subsequent queries. The design must be visually stunning, utilizing Tailwind CSS, modern typography, dark mode aesthetics, and micro-animations to convey trust and advanced capabilities.
+
+## User Review Required
+> [!IMPORTANT]
+> I have added the tasks to support multi-document uploading. Since we are operating standalone, I will build a beautiful drag-and-drop `DocumentUploader` modal. The documents will be stored in frontend state and sent to the mock API `submitQuery` to simulate the answers being retrieved "accordingly" from those specific documents. 
+> Does this approach work for you to demonstrate the capability?
+
+## Proposed Changes
+
+### Setup and Configuration
+- **Tailwind CSS**: Will be used extensively for styling. We will customize the theme with a rich, dark-mode-first color palette (slate, indigo, emerald for confidence).
+- **Lucide React**: Already in `package.json`, will be used for high-quality iconography.
+
+### Component Architecture
+
+#### `src/index.css` (MODIFY)
+- Replace default Vite styles with Tailwind directives and custom CSS variables for our premium theme. Add utility classes for glassmorphism and animations.
+
+#### `src/App.jsx` (MODIFY)
+- Replace the default Vite template with the main application layout.
+- Implement state to hold the conversation history, current query status, and **uploaded documents tracking**.
+- Pass uploaded documents state to the API services so responses are contextually aware.
+
+#### `src/components/MainLayout.tsx` (NEW)
+- A shell component containing a sidebar (for history/settings) and the main chat area.
+
+#### `src/components/QueryInput.tsx` (NEW)
+- A large, prominent text area for inputting queries.
+- Includes a toggle for Light/Heavy mode (as defined in PRD FR-5).
+- Submit button with loading state.
+
+#### `src/components/AnswerCard.tsx` (NEW)
+- The core display component for a system response.
+- **Sections**:
+  - Main answer text.
+  - Confidence Score badge (Color-coded based on thresholds: ≥ 0.80 Green, 0.60–0.79 Yellow, < 0.60 Red).
+  - Expandable "Evidence/Citations" section showing specific chunks.
+  - Expandable "Pipeline Status" to show what steps the system took (Query Analysis, Retrieval, Workers, Synthesis).
+
+#### `src/components/ThinkingIndicator.jsx` (NEW)
+- A visual indicator showing progress when a query is submitted, especially for Heavy Mode which might take up to 20-30 seconds.
+
+#### `src/components/DocumentUploader.jsx` (NEW)
+- A modal or slide-over panel that allows users to drag-and-drop multiple files.
+- Shows upload progress and a list of active documents for the session.
+
+### API Integration Services
+#### `src/services/api.js` (MODIFY)
+- Functions to communicate with the HelioX backend.
+- Update `submitQuery` to accept an array of `uploadedDocuments` and use them to construct a dynamic, mock response that proves the system is answering "accordingly" to those documents (e.g. citing their filenames).
+- Add `uploadDocuments` mock service to simulate processing files.
+
+## Verification Plan
+
+### Automated Tests
+- Currently, no frontend testing frameworks (like Jest, Vitest, or React Testing Library) are set up. We will rely on manual verification and visual inspection via the dev server.
+- If required, we can add `vitest` for component testing.
+
+### Manual Verification
+1. Run `npm run dev` in the `frontend` directory.
+2. Open the browser to the provided localhost URL.
+3. Visually inspect the overall layout against the "Premium Aesthetic" requirement.
+4. Interact with the `QueryInput` component to ensure it accepts text and triggers a loading state.
+5. Verify that the mocked `AnswerCard` correctly displays the answer, confidence variations, and expand/collapse behavior for evidence.
+6. Test responsiveness by resizing the browser window (mobile, tablet, desktop views).

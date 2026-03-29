@@ -1,0 +1,51 @@
+# Cross-Chunk Synthesizer — Walkthrough
+
+## What Was Built
+
+**Layer 9 — Cross-Chunk Synthesizer** per §2.9. Takes worker outputs, deduplicates claims, detects contradictions, builds a structured evidence graph, and computes global coverage.
+
+## Architecture
+
+```mermaid
+graph TD
+    WO["Worker Outputs"] --> FILT["Filter SUFFICIENT"]
+    FILT --> DEDUP["Claim Dedup<br/>Jaccard > 0.92"]
+    DEDUP --> COMP["Complementary Merge<br/>Group by fact components"]
+    COMP --> CONF["Conflict Detection<br/>Negation / Antonyms"]
+    CONF --> GRAPH["Evidence Graph<br/>Nodes + Edges"]
+    GRAPH --> COV["Global Coverage<br/>fact_components ratio"]
+    COV --> RESULT["SynthesisResult"]
+```
+
+## Files Created
+
+| File | Purpose |
+|------|---------|
+| [schemas.py](file:///c:/HelioX/synthesis/schemas.py) | [MergedClaim](file:///c:/HelioX/synthesis/schemas.py#23-36), [ConflictCandidate](file:///c:/HelioX/synthesis/schemas.py#43-53), `EvidenceNode/Edge/Graph`, [SynthesisResult](file:///c:/HelioX/synthesis/schemas.py#98-109) |
+| [dedup.py](file:///c:/HelioX/synthesis/dedup.py) | Jaccard token similarity > 0.92 → merge claims, combine spans + max confidence |
+| [conflict_detector.py](file:///c:/HelioX/synthesis/conflict_detector.py) | Negation asymmetry, opposition markers, antonym pairs → [ConflictCandidate](file:///c:/HelioX/synthesis/schemas.py#43-53) |
+| [evidence_graph.py](file:///c:/HelioX/synthesis/evidence_graph.py) | Nodes (claims), edges (supports/conflicts/overlaps), global coverage calc |
+| [synthesizer.py](file:///c:/HelioX/synthesis/synthesizer.py) | [CrossChunkSynthesizer](file:///c:/HelioX/synthesis/synthesizer.py#22-117) — full pipeline orchestrator |
+| [\_\_init\_\_.py](file:///c:/HelioX/synthesis/__init__.py) | Package exports |
+
+## Key Outputs
+
+- **Merged Claims**: Deduplicated, tagged with fact_components_addressed
+- **Conflict Candidates**: Pairs with severity (low/medium/high) and signal list
+- **Evidence Graph**: Nodes + 3 edge types (supports, conflicts, overlaps)
+- **Global Coverage**: Fraction of SQO fact_components covered by evidence
+
+## Test Results
+
+**20/20 tests passing** in 0.17s.
+
+| Test Group | Count | Coverage |
+|------------|-------|----------|
+| Dedup | 5 | Exact, near, distinct, empty, filtered |
+| Conflict detection | 4 | Negation, antonym, no false, single |
+| Evidence graph | 6 | Basic, conflicts, full/partial/empty coverage, overlaps |
+| Full synthesizer | 5 | End-to-end, duplicates, empty, conflicts, complementary |
+
+```
+============================= 20 passed in 0.17s ==============================
+```

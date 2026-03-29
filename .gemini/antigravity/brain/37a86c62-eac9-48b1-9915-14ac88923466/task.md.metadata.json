@@ -1,0 +1,6 @@
+{
+  "artifactType":  "ARTIFACT_TYPE_TASK",
+  "summary":  "Overwrote the task breakdown to trace out the new requirements for Groq vs Mistral configurations across Profiling, Heavy, and Light Principal LLM stages.",
+  "updatedAt":  "2026-03-09T16:26:51.865414800Z",
+  "version":  "18"
+}

@@ -1,0 +1,6 @@
+# Fix PostgreSQL Chunk Data Population
+
+- [/] Investigate why PostgreSQL has no chunk ID data
+- [ ] Add profiling step to [run_pipeline.py](file:///c:/HelioX/run_pipeline.py) so chunk profiles get written to PostgreSQL
+- [ ] Create/copy `.env` from [.env.example](file:///c:/HelioX/.env.example) if needed
+- [ ] Verify the fix by running the pipeline and checking PostgreSQL

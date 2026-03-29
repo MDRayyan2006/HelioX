@@ -1,0 +1,61 @@
+<current_dom_explanation>
+This is a temporary snapshot of the current page's DOM structure. The DOM will change if you navigate to or interact with another page. Use a tool like browser_get_dom to capture and preserve the DOM in your trajectory if needed for later reference.
+</current_dom_explanation>
+<current_dom>
+[0] (500,500)<div  />
+	H
+	HelioX
+	3.0
+	Capabilities
+	[1] (123,175)<button class='w-full flex items-center gap-3 px-3 py-2 rounded-md transition-all text-sm font-medium text-left
+        bg-teal-500/10 text-teal-400 border border-teal-500/20'>Compliance Analysis />
+		Compliance Analysis
+	[2] (123,233)<button class='w-full flex items-center gap-3 px-3 py-2 rounded-md transition-all text-sm font-medium text-left
+        text-slate-400 hover:bg-slate-800/50 hover:text-slate-200'>Document Query />
+		Document Query
+	[3] (123,290)<button class='w-full flex items-center gap-3 px-3 py-2 rounded-md transition-all text-sm font-medium text-left
+        text-slate-400 hover:bg-slate-800/50 hover:text-slate-200'>Audit Trail />
+		Audit Trail
+	Recent Sessions
+	[4] (123,420)<button class='w-full flex items-center gap-3 px-3 py-2 rounded-md transition-all text-sm font-medium text-left
+        text-slate-400 hover:bg-slate-800/50 hover:text-slate-200'>Vendor A vs B MSA />
+		Vendor A vs B MSA
+	[5] (123,477)<button class='w-full flex items-center gap-3 px-3 py-2 rounded-md transition-all text-sm font-medium text-left
+        text-slate-400 hover:bg-slate-800/50 hover:text-slate-200'>Q4 Churn Factors />
+		Q4 Churn Factors
+	[6] (123,534)<button class='w-full flex items-center gap-3 px-3 py-2 rounded-md transition-all text-sm font-medium text-left
+        text-slate-400 hover:bg-slate-800/50 hover:text-slate-200'>API Rate Limits />
+		API Rate Limits
+	[7] (123,952)<button class='flex items-center gap-2 text-slate-400 hover:text-slate-200 transition-colors w-full p-2 rounded-md hover:bg-slate-800/50'>Settings />
+		Settings
+	[8] (624,325)<div class='flex-1 overflow-y-auto px-4 py-8 scroll-smooth w-full' scrollable='true' />
+		Synthesis Complete
+		Conf:
+		88.0
+		%
+		heavy
+		Mode
+		4.1
+		s
+		•
+		~
+		18400
+		tkns
+		Based on the provided corpus, here is the answer to your query: "What are the API rate limits for the enterprise tier?". This is a simulated response demonstrating the evidence-bound composition. The system has analyzed multiple chunks to provide this synthesis [C1]. Furthermore, constraints were respected [C2].
+		Adjudication Report
+		Resolved minor semantic conflict between chunk C1 and an omitted chunk.
+		[9] (475,486)<button class='flex items-center gap-2 text-sm font-medium text-slate-400 hover:text-slate-200 transition-colors py-2'>Supporting Evidence (
+2
+Cited Spans) />
+			Supporting Evidence (
+			2
+			Cited Spans)
+	[10] (624,745)<textarea class='w-full bg-transparent text-slate-100 placeholder-slate-500 p-4 resize-none focus:outline-none min-h-[100px] text-lg rounded-t-2xl' placeholder='Ask a question about your documents...' />
+	[11] (304,865)<button class='px-3 py-1.5 text-xs font-semibold rounded-md transition-colors text-slate-500 hover:text-slate-300'>Light />
+	[12] (365,865)<button class='px-3 py-1.5 text-xs font-semibold rounded-md transition-colors flex items-center gap-1 text-slate-500 hover:text-slate-300'>Auto />
+	[13] (430,865)<button class='px-3 py-1.5 text-xs font-semibold rounded-md transition-colors bg-indigo-500/20 text-indigo-400 border border-indigo-500/30'>Heavy />
+	[14] (495,865)<button class='p-2 text-slate-500 hover:text-slate-300 transition-colors tooltip relative group/btn' />
+	[15] (951,865)<button class='p-3 rounded-xl flex items-center justify-center transition-all bg-teal-500 text-slate-950 hover:bg-teal-400 hover:shadow-[0_0_15px_rgba(20,184,166,0.5)]' />
+	HelioX may produce inaccurate information. Verify critical answers against source documents.
+
+</current_dom>

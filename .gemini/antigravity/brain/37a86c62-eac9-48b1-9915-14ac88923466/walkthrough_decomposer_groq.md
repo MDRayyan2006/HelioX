@@ -1,0 +1,25 @@
+# Walkthrough: Refactoring Query Decomposer to Use Groq
+
+## Problem
+During the pipeline execution over `04OLAP.pdf`, a `mistralai.models.sdkerror.SDKError: API error occurred: Status 429` (Rate limit exceeded) error was triggered in `query_pipeline/decomposer.py`. This component is responsible for decomposing the original user query ("what is OLAP") into sub-questions.
+
+The user requested to replace the Mistral API inside the `QueryDecomposer` with the Groq API using a newly provided API key (`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`).
+
+## Changes Made
+
+### Updating `QueryDecomposer` in `query_pipeline/decomposer.py`
+1. **Replaced Mistral with AsyncGroq**:
+    - Removed `from mistralai import Mistral` from `_get_client()`.
+    - Added `from groq import AsyncGroq`.
+    - Initialized `self._client` using the provided Groq API key: `gsk_dx2VTSPA...`.
+
+2. **Re-implemented `_call_llm` for Groq**:
+    - Changed the chat completion method from `complete_async` to `chat.completions.create`.
+    - Assigned the model `"llama-3.1-8b-instant"`.
+    - Ensured `response_format={"type": "json_object"}` was passed so the decomposer stringently outputs the structured JSON expected by the pipeline logic.
+    - Added the `tenacity` retry loop to gracefully catch and exponentially backoff from `groq.RateLimitError` exceptions in case usage spikes.
+
+## Verification
+- We executed `python run_pipeline.py` with the query "what is OLAP" over `04OLAP.pdf`.
+- The **Query Analyzer (Stage 2)** successfully decomposed the query using the `llama-3.1-8b-instant` Groq model without encountering any rate limit errors.
+- The pipeline seamlessly proceeded through all remaining stages, evaluating chunks through the Groq worker pool, and ultimately generated the correct answer.

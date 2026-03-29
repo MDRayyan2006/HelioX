@@ -1,0 +1,47 @@
+# Goal Description
+The user wants to replace the remaining Gemini API dependencies with the Mistral API using three distinct API keys for modular billing and segmentation:
+1. **Worker Agents**: `HzQw31z1kNuIB93eTz37sZESZ41YBjay`
+2. **Named Entity**: `tHCVQ4zuNrlKvXgZ3u2J72CWg2PVNRMn`
+3. **Query Decomposition**: `U2YS8YofqIfWmdYYbmrjgZ3ndPfE7KEK`
+
+## User Review Required
+> [!IMPORTANT]
+> The existing [EntityExtractor](file:///c:/HelioX/profiling/entity_extractor.py#59-163) implementations (in both the `profiling` and `query_pipeline` directories) currently use local Regex heuristics instead of an LLM. 
+> To honor the request to use Mistral for "Named Entity", I will rewrite these extractors to call the Mistral API with the provided key to extract the entities, improving accuracy over the old Regex approach. Please verify if this matches your intention!
+
+## Proposed Changes
+
+### Configuration Layer
+#### [MODIFY] [.env](file:///c:/HelioX/.env)
+- Add the three new Mistral API keys to the environment variables.
+
+#### [MODIFY] [config.py](file:///c:/HelioX/ingestion/config.py)
+- Expose the new Mistral keys (`mistral_api_key_worker`, `mistral_api_key_entity`, `mistral_api_key_decomposer`) in the [Settings](file:///c:/HelioX/ingestion/config.py#9-49) schema.
+
+#### [MODIFY] [config.py](file:///c:/HelioX/query_pipeline/config.py)
+- Expose the exact same Mistral keys in the [QueryPipelineSettings](file:///c:/HelioX/query_pipeline/config.py#6-19) schema so the query pipeline has access to them.
+
+### Service Layer
+
+#### [MODIFY] [worker.py](file:///c:/HelioX/workers/worker.py)
+- Currently uses `google.genai`.
+- Replace with `mistralai.Mistral(api_key=settings.mistral_api_key_worker)`.
+- Update [_call_llm](file:///c:/HelioX/query_pipeline/decomposer.py#130-142) to use `client.chat.complete_async` and map the token usage output properly.
+
+#### [MODIFY] [decomposer.py](file:///c:/HelioX/query_pipeline/decomposer.py)
+- Currently uses `google.genai`.
+- Replace with `mistralai.Mistral(api_key=settings.mistral_api_key_decomposer)`.
+- Update [_call_llm](file:///c:/HelioX/query_pipeline/decomposer.py#130-142) to use `client.chat.complete_async`.
+
+#### [MODIFY] [entity_extractor.py](file:///c:/HelioX/profiling/entity_extractor.py)
+- Rewrite [extract_entities](file:///c:/HelioX/profiling/entity_extractor.py#78-101) to call Mistral using `mistral_api_key_entity`.
+- Prompt Mistral to extract proper nouns, acronyms, regulations, and dates from the chunks, returning strict JSON.
+- Remove the legacy Regex logic.
+
+#### [MODIFY] [entity_extractor.py](file:///c:/HelioX/query_pipeline/entity_extractor.py)
+- Rewrite [extract](file:///c:/HelioX/query_pipeline/entity_extractor.py#77-100) similarly to call Mistral using `mistral_api_key_entity` for the shorter queries.
+
+## Verification Plan
+### Automated Tests
+- Run [test_pdf_integration.py](file:///c:/HelioX/tests/test_pdf_integration.py) or [run_test_pdf.py](file:///c:/HelioX/run_test_pdf.py) to ensure all these components trigger correctly without throwing Gemini `ImportError`s or missing key errors.
+- Ensure Mistral's JSON outputs map correctly to the existing schema dataclasses.

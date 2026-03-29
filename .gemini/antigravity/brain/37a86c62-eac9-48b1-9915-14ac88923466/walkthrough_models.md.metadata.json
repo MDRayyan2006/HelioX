@@ -1,0 +1,5 @@
+{
+  "artifactType":  "ARTIFACT_TYPE_WALKTHROUGH",
+  "summary":  "Created an artifact detailing how I split LLM logic across the Profiling, Heavy, and Light Principal components using Groq and Mistral.",
+  "updatedAt":  "2026-03-09T16:32:29.750251400Z"
+}

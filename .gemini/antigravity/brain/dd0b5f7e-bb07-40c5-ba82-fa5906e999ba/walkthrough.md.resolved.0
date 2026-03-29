@@ -1,0 +1,1141 @@
+# Fix: PostgreSQL Chunk Data Population
+
+## Problem
+
+[run_pipeline.py](file:///c:/HelioX/run_pipeline.py) ingested documents into SQLite but **never wrote chunk profiles to PostgreSQL**. The [chunk_profiles](file:///c:/HelioX/retrieval/metadata_filter.py#87-164) table remained empty because the pipeline skipped the profiling service entirely.
+
+## Root Cause
+
+The pipeline runner built mock `ScoredChunk` objects directly from ingested chunks for retrieval simulation — it never called `ProfilingService._insert_postgres()` which is responsible for populating the [chunk_profiles](file:///c:/HelioX/retrieval/metadata_filter.py#87-164) table.
+
+## Changes Made
+
+### [run_pipeline.py](file:///c:/HelioX/run_pipeline.py)
+
+Added **Stage 0.5 — Expert Profiling → PostgreSQL** between ingestion and query analysis:
+
+```diff:run_pipeline.py
+#!/usr/bin/env python3
+"""
+═══════════════════════════════════════════════════════════════════════════
+  HelioX RAG 3.0 — Unified Pipeline Runner
+═══════════════════════════════════════════════════════════════════════════
+
+  Run:  python run_pipeline.py
+
+  This script ingests test.pdf, asks you for a query, and processes it
+  through the full 12-layer RAG pipeline with live stage visualization.
+
+  External services (Gemini, Redis, Qdrant) are mocked so the pipeline
+  runs entirely locally — demonstrating orchestration, synthesis,
+  adjudication, confidence gating, and answer composition.
+═══════════════════════════════════════════════════════════════════════════
+"""
+
+from __future__ import annotations
+
+import asyncio
+import sys
+import os
+import time
+import uuid
+from pathlib import Path
+from unittest.mock import AsyncMock, MagicMock, patch
+
+# Force UTF-8 output on Windows
+if sys.platform == "win32":
+    os.system("")  # enable ANSI escape on Windows terminal
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+
+# ── Patch external services before any HelioX imports ─────────────────
+_mock_redis = patch("memory.session_store.redis.from_url", return_value=MagicMock())
+_mock_gemini = patch("composer.generator.genai.Client", autospec=True)
+_mock_redis.start()
+_mock_gemini.start()
+
+# ── HelioX imports ────────────────────────────────────────────────────
+from ingestion.pipeline import ingest_file
+from query_pipeline.analyzer import QueryAnalyzer
+from query_pipeline.schemas import (
+    QueryAnalysisResponse,
+    QueryConstraints,
+    QueryIntent,
+    StructuredQueryObject,
+    TemporalConstraint,
+)
+from query_pipeline.validator import QueryValidationAgent
+from orchestrator.mode_controller import ModeController
+from orchestrator.schemas import ExecutionMode
+from retrieval.schemas import ScoredChunk
+from workers.schemas import PoolResult, TokenUsage, WorkerOutput, WorkerStatus
+from synthesis.synthesizer import CrossChunkSynthesizer
+from adjudication.engine import AdjudicationEngine
+from composer.schemas import AnswerMetadata, FinalAnswer
+from confidence.engine import ConfidenceEngine
+from confidence.schemas import ConfidenceAction
+
+
+# ═════════════════════════════════════════════════════════════════════════
+# Console Helpers
+# ═════════════════════════════════════════════════════════════════════════
+
+CYAN    = "\033[96m"
+GREEN   = "\033[92m"
+YELLOW  = "\033[93m"
+RED     = "\033[91m"
+MAGENTA = "\033[95m"
+BOLD    = "\033[1m"
+DIM     = "\033[2m"
+RESET   = "\033[0m"
+BOX_H   = "═"
+BOX_TL  = "╔"
+BOX_TR  = "╗"
+BOX_BL  = "╚"
+BOX_BR  = "╝"
+BOX_V   = "║"
+ARROW   = "►"
+
+
+def banner(title: str, color: str = CYAN):
+    w = 70
+    print()
+    print(f"{color}{BOX_TL}{BOX_H * (w-2)}{BOX_TR}{RESET}")
+    print(f"{color}{BOX_V}  {BOLD}{title.center(w-6)}{RESET}{color}  {BOX_V}{RESET}")
+    print(f"{color}{BOX_BL}{BOX_H * (w-2)}{BOX_BR}{RESET}")
+
+
+def stage_header(number: int, name: str):
+    print(f"\n  {CYAN}{BOLD}[Stage {number}]{RESET}  {YELLOW}{ARROW}{RESET} {BOLD}{name}{RESET}")
+    print(f"  {DIM}{'─' * 58}{RESET}")
+
+
+def detail(label: str, value, indent: int = 4):
+    pad = " " * indent
+    print(f"{pad}{DIM}│{RESET} {GREEN}{label}:{RESET} {value}")
+
+
+def success(msg: str, indent: int = 4):
+    pad = " " * indent
+    print(f"{pad}{GREEN}✓{RESET} {msg}")
+
+
+def warn(msg: str, indent: int = 4):
+    pad = " " * indent
+    print(f"{pad}{YELLOW}⚠{RESET} {msg}")
+
+
+def section_break():
+    print(f"  {DIM}{'─' * 58}{RESET}")
+
+
+# ═════════════════════════════════════════════════════════════════════════
+# Pipeline
+# ═════════════════════════════════════════════════════════════════════════
+
+
+async def run_pipeline(query: str, pdf_path: Path):
+    """Execute the full 12-layer RAG pipeline with live visualization."""
+
+    query_id = str(uuid.uuid4())[:8]
+    timings: dict[str, float] = {}
+
+    # ─────────────────────────────────────────────────────────────────
+    # STAGE 0  — Document Ingestion
+    # ─────────────────────────────────────────────────────────────────
+    stage_header(0, "Document Ingestion")
+    t0 = time.perf_counter()
+    doc_graph = ingest_file(pdf_path)
+    timings["ingestion"] = (time.perf_counter() - t0) * 1000
+
+    detail("Document ID", doc_graph.document_id)
+    detail("Total Chunks", doc_graph.total_chunks)
+    detail("Format", pdf_path.suffix.upper())
+    detail("Time", f"{timings['ingestion']:.1f} ms")
+    for i, chunk in enumerate(doc_graph.chunks[:3]):
+        preview = chunk.text[:80].replace("\n", " ") + "…"
+        detail(f"Chunk {i+1}", f'"{preview}"')
+    if doc_graph.total_chunks > 3:
+        detail("...", f"({doc_graph.total_chunks - 3} more chunks)")
+    success(f"Ingested {doc_graph.total_chunks} chunks from {pdf_path.name}")
+
+    # ─────────────────────────────────────────────────────────────────
+    # STAGE 1  — Query Analysis (Intent + Entity + Constraint)
+    # ─────────────────────────────────────────────────────────────────
+    stage_header(1, "Query Analysis")
+    t0 = time.perf_counter()
+
+    analyzer = QueryAnalyzer()
+    # We mock the async analyze call to avoid Gemini dependency
+    # but run the real intent/entity/constraint extraction internally
+    from query_pipeline.intent_classifier import IntentClassifier
+    from query_pipeline.entity_extractor import QueryEntityExtractor
+    from query_pipeline.constraint_extractor import QueryConstraintExtractor
+
+    classifier = IntentClassifier()
+    entity_extractor = QueryEntityExtractor()
+    constraint_extractor = QueryConstraintExtractor()
+
+    intent_result = classifier.classify(query)
+    entity_result = entity_extractor.extract(query)
+    entities_list = entity_result.entities  # list[str]
+    constraints = constraint_extractor.extract(query)
+
+    sqo = StructuredQueryObject(
+        original_query=query,
+        intent=intent_result.intent,
+        entities=entities_list,
+        constraints=constraints,
+        fact_components=[query],
+        reasoning_components=[],
+        decomposition_confidence=0.85,
+    )
+
+    timings["analysis"] = (time.perf_counter() - t0) * 1000
+    detail("Intent", f"{intent_result.intent.value} (confidence: {intent_result.confidence:.2f})")
+    detail("Entities", entities_list if entities_list else "[none detected]")
+    detail("Constraints", f"temporal={constraints.temporal}, geo={constraints.geographic}")
+    detail("Fact Components", sqo.fact_components)
+    detail("Time", f"{timings['analysis']:.1f} ms")
+    success("Query analyzed successfully")
+
+    # ─────────────────────────────────────────────────────────────────
+    # STAGE 2  — SQO Validation & Locking
+    # ─────────────────────────────────────────────────────────────────
+    stage_header(2, "SQO Validation & Locking")
+    t0 = time.perf_counter()
+
+    validator = QueryValidationAgent()
+    report = validator.validate(sqo)
+
+    timings["validation"] = (time.perf_counter() - t0) * 1000
+    detail("Verdict", report.verdict.value)
+    detail("Corrections", len(report.corrections))
+    detail("Warnings", len(report.warnings))
+    detail("Confidence", f"{report.confidence.overall_score:.3f}")
+    detail("Locked", sqo.locked)
+    for w in report.warnings[:3]:
+        warn(f"[{w.code}] {w.message}")
+    detail("Time", f"{timings['validation']:.1f} ms")
+    success(f"SQO {report.verdict.value} and {'locked' if sqo.locked else 'NOT locked'}")
+
+    # ─────────────────────────────────────────────────────────────────
+    # STAGE 3  — Mode Selection (LIGHT / HEAVY)
+    # ─────────────────────────────────────────────────────────────────
+    stage_header(3, "Mode Selection")
+    t0 = time.perf_counter()
+
+    mode_ctrl = ModeController()
+    ambiguity = any(w.code == "AMBIGUITY" for w in report.warnings)
+    mode_sel = mode_ctrl.select_initial_mode(sqo.intent, ambiguity)
+    mode = mode_sel.selected_mode
+
+    timings["mode"] = (time.perf_counter() - t0) * 1000
+    detail("Selected Mode", f"{BOLD}{mode.value.upper()}{RESET}")
+    detail("Reasoning", mode_sel.reasoning)
+    detail("Ambiguity Detected", ambiguity)
+    detail("Time", f"{timings['mode']:.1f} ms")
+    success(f"Pipeline routed to {mode.value.upper()} mode")
+
+    # ─────────────────────────────────────────────────────────────────
+    # STAGE 4  — Hybrid Retrieval (Simulated from ingested chunks)
+    # ─────────────────────────────────────────────────────────────────
+    stage_header(4, "Hybrid Retrieval")
+    t0 = time.perf_counter()
+
+    scored_chunks = [
+        ScoredChunk(
+            chunk_id=c.id,
+            document_id=doc_graph.document_id,
+            section_id=c.section_id,
+            text=c.text,
+            semantic_similarity=round(0.95 - i * 0.05, 2),
+            weighted_score=round(0.93 - i * 0.04, 2),
+            entities=[],
+        )
+        for i, c in enumerate(doc_graph.chunks)
+    ]
+
+    timings["retrieval"] = (time.perf_counter() - t0) * 1000
+    detail("Chunks Retrieved", len(scored_chunks))
+    for i, sc in enumerate(scored_chunks[:5]):
+        preview = sc.text[:60].replace("\n", " ") + "…"
+        detail(f"  [{i+1}] sim={sc.semantic_similarity:.2f}", f'"{preview}"')
+    detail("Time", f"{timings['retrieval']:.1f} ms")
+    success(f"Retrieved {len(scored_chunks)} chunks ranked by weighted score")
+
+    # ─────────────────────────────────────────────────────────────────
+    # STAGE 5  — Parallel Worker Execution
+    # ─────────────────────────────────────────────────────────────────
+    stage_header(5, "Multi-Agent Worker Pool")
+    t0 = time.perf_counter()
+
+    worker_outputs = []
+    for i, sc in enumerate(scored_chunks):
+        # Simulate worker claim extraction from chunk text
+        claim = sc.text[:120].replace("\n", " ").strip()
+        wo = WorkerOutput(
+            worker_id=f"worker-{i+1}",
+            chunk_id=sc.chunk_id,
+            status=WorkerStatus.SUFFICIENT,
+            claim=claim,
+            supporting_spans=[],
+            reasoning_trace=f"Chunk {sc.chunk_id[:8]} evaluated — evidence sufficient.",
+            confidence_local=round(0.90 - i * 0.02, 2),
+            coverage_score=round(0.85 - i * 0.03, 2),
+            token_usage=TokenUsage(input_tokens=150, output_tokens=60, total_tokens=210),
+        )
+        worker_outputs.append(wo)
+
+    pool_result = PoolResult(
+        outputs=worker_outputs,
+        total_workers=len(worker_outputs),
+        completed_workers=len(worker_outputs),
+        sufficient_count=len(worker_outputs),
+        insufficient_count=0,
+        error_count=0,
+        total_tokens_used=210 * len(worker_outputs),
+        token_budget=19200,
+        aggregate_confidence=sum(w.confidence_local for w in worker_outputs) / len(worker_outputs),
+        early_stopped=False,
+        timed_out=False,
+        duration_ms=50,
+    )
+
+    timings["workers"] = (time.perf_counter() - t0) * 1000
+    detail("Workers Dispatched", pool_result.total_workers)
+    detail("Sufficient", pool_result.sufficient_count)
+    detail("Aggregate Confidence", f"{pool_result.aggregate_confidence:.3f}")
+    detail("Token Budget Used", f"{pool_result.total_tokens_used} / {pool_result.token_budget}")
+    for wo in worker_outputs[:3]:
+        preview = wo.claim[:70] + "…"
+        detail(f"  Worker {wo.worker_id}", f'"{preview}"')
+    detail("Time", f"{timings['workers']:.1f} ms")
+    success(f"{pool_result.sufficient_count}/{pool_result.total_workers} workers returned SUFFICIENT claims")
+
+    # ─────────────────────────────────────────────────────────────────
+    # STAGE 6  — Cross-Chunk Synthesis
+    # ─────────────────────────────────────────────────────────────────
+    stage_header(6, "Cross-Chunk Synthesis")
+    t0 = time.perf_counter()
+
+    synthesizer = CrossChunkSynthesizer()
+    synthesis_result = synthesizer.synthesize(worker_outputs, sqo)
+
+    timings["synthesis"] = (time.perf_counter() - t0) * 1000
+    detail("Claims Input", synthesis_result.total_claims_input)
+    detail("After Dedup", synthesis_result.total_claims_after_dedup)
+    detail("Conflict Candidates", len(synthesis_result.conflict_candidates))
+    detail("Global Coverage", f"{synthesis_result.global_coverage:.3f}")
+    detail("Complementary Groups", synthesis_result.complementary_groups)
+    for i, mc in enumerate(synthesis_result.merged_claims[:3]):
+        preview = mc.claim_text[:70] + "…"
+        detail(f"  Claim {i+1}", f'"{preview}"')
+    detail("Time", f"{timings['synthesis']:.1f} ms")
+    success(f"Synthesized {len(synthesis_result.merged_claims)} merged claims, {len(synthesis_result.conflict_candidates)} conflicts")
+
+    # ─────────────────────────────────────────────────────────────────
+    # STAGE 7  — Adjudication Engine
+    # ─────────────────────────────────────────────────────────────────
+    stage_header(7, "Adjudication Engine")
+    t0 = time.perf_counter()
+
+    adjudicator = AdjudicationEngine()
+    adj_result = adjudicator.adjudicate(synthesis_result, worker_outputs)
+
+    timings["adjudication"] = (time.perf_counter() - t0) * 1000
+    detail("Total Conflicts", adj_result.total_conflicts)
+    detail("Resolved", adj_result.resolved_count)
+    detail("Unresolved", adj_result.unresolved_count)
+    detail("Selected Claims", len(adj_result.selected_claims))
+    detail("Rejected Claims", len(adj_result.rejected_claims))
+    detail("Updated Confidence", f"{adj_result.updated_confidence:.4f}")
+    detail("Penalty", f"{adj_result.confidence_penalty:.4f}")
+    detail("Time", f"{timings['adjudication']:.1f} ms")
+    success(f"Adjudication complete — {len(adj_result.selected_claims)} claims selected")
+
+    # ─────────────────────────────────────────────────────────────────
+    # STAGE 8  — Answer Composition
+    # ─────────────────────────────────────────────────────────────────
+    stage_header(8, "Answer Composition")
+    t0 = time.perf_counter()
+
+    # Build the answer from selected claims (mock LLM generation)
+    citations_text = []
+    for i, claim in enumerate(adj_result.selected_claims[:5]):
+        cid = f"[C{i+1}]"
+        citations_text.append(f"{claim.claim_text} {cid}")
+
+    direct_answer = " ".join(citations_text) if citations_text else "Insufficient evidence."
+
+    # Compute coverage
+    covered_comps = set()
+    for c in adj_result.selected_claims:
+        covered_comps.update(c.fact_components_addressed)
+    coverage = len(covered_comps) / max(1, len(sqo.fact_components))
+
+    final_answer = FinalAnswer(
+        direct_answer=direct_answer,
+        supporting_evidence=[],
+        metadata=AnswerMetadata(
+            constraints_applied={"scope": sqo.constraints.scope or "section-level"},
+            confidence_score=adj_result.updated_confidence,
+            coverage_score=coverage,
+            conflict_notes=[
+                f"Conflict resolved: {log.resolution.resolution_method}"
+                for log in adj_result.conflict_log
+            ],
+        ),
+    )
+
+    timings["composition"] = (time.perf_counter() - t0) * 1000
+    detail("Coverage", f"{coverage:.3f}")
+    detail("Citations Generated", min(5, len(adj_result.selected_claims)))
+    detail("Conflict Notes", len(final_answer.metadata.conflict_notes))
+    detail("Time", f"{timings['composition']:.1f} ms")
+    success("Answer composed with citations")
+
+    # ─────────────────────────────────────────────────────────────────
+    # STAGE 9  — Confidence Gate
+    # ─────────────────────────────────────────────────────────────────
+    stage_header(9, "Confidence Gate")
+    t0 = time.perf_counter()
+
+    confidence_engine = ConfidenceEngine()
+    conf_eval = confidence_engine.evaluate(
+        retrieval_coverage=coverage,
+        worker_agreement=adj_result.updated_confidence,
+        citation_density=0.85,
+        conflict_severity=min(1.0, adj_result.unresolved_count * 0.25),
+        authority_score=0.90,
+        avg_cosine_similarity=scored_chunks[0].semantic_similarity if scored_chunks else 0.0,
+    )
+
+    timings["confidence"] = (time.perf_counter() - t0) * 1000
+    detail("Global Confidence", f"{BOLD}{conf_eval.global_confidence:.4f}{RESET}")
+    detail("Action", f"{BOLD}{conf_eval.action.value}{RESET}")
+    detail("Sub-Scores", conf_eval.sub_scores)
+    detail("Time", f"{timings['confidence']:.1f} ms")
+
+    # Auto-escalation check
+    if mode == ExecutionMode.LIGHT and mode_ctrl.should_escalate(conf_eval.global_confidence):
+        warn("Auto-escalating LIGHT → HEAVY (confidence below threshold)")
+        mode = ExecutionMode.HEAVY
+
+    success(f"Confidence gate passed → {conf_eval.action.value}")
+
+    # ─────────────────────────────────────────────────────────────────
+    # STAGE 10 — Session Memory (Simulated)
+    # ─────────────────────────────────────────────────────────────────
+    stage_header(10, "Session Memory")
+    t0 = time.perf_counter()
+
+    session_id = str(uuid.uuid4())[:8]
+    timings["memory"] = (time.perf_counter() - t0) * 1000
+    detail("Session ID", session_id)
+    detail("Stored", "validated summary + constraints + answer")
+    detail("Excluded", "raw worker outputs, LLM speculation")
+    detail("Time", f"{timings['memory']:.1f} ms")
+    success("Interaction persisted to session memory")
+
+    # ─────────────────────────────────────────────────────────────────
+    # STAGE 11 — Final Delivery
+    # ─────────────────────────────────────────────────────────────────
+    total_time = sum(timings.values())
+
+    banner("FINAL ANSWER", GREEN)
+
+    print(f"\n  {BOLD}Query:{RESET}  {query}")
+    print(f"  {BOLD}Mode:{RESET}   {mode.value.upper()}")
+    print()
+
+    # Print answer with word wrapping
+    import textwrap
+    wrapped = textwrap.fill(final_answer.direct_answer, width=66, initial_indent="  ", subsequent_indent="  ")
+    print(f"{GREEN}{wrapped}{RESET}")
+
+    print()
+    print(f"  {DIM}{'─' * 66}{RESET}")
+    print(f"  {BOLD}Confidence:{RESET}      {conf_eval.global_confidence:.4f}  →  {conf_eval.action.value}")
+    print(f"  {BOLD}Coverage:{RESET}        {coverage:.3f}")
+    print(f"  {BOLD}Selected Claims:{RESET} {len(adj_result.selected_claims)}")
+    print(f"  {BOLD}Conflicts:{RESET}       {adj_result.total_conflicts} ({adj_result.resolved_count} resolved)")
+    print(f"  {BOLD}Total Latency:{RESET}   {total_time:.1f} ms")
+    print()
+
+    # Pipeline timing breakdown
+    banner("PIPELINE DIAGNOSTICS", MAGENTA)
+    print()
+    max_label = max(len(k) for k in timings)
+    max_val = max(timings.values()) if timings.values() else 1
+    for stage, ms in timings.items():
+        bar_len = int((ms / max_val) * 30) if max_val > 0 else 0
+        bar = "█" * bar_len + "░" * (30 - bar_len)
+        print(f"  {stage.rjust(max_label)}  {DIM}│{RESET} {CYAN}{bar}{RESET} {ms:7.1f} ms")
+    print(f"\n  {'TOTAL'.rjust(max_label)}  {DIM}│{RESET} {BOLD}{total_time:.1f} ms{RESET}")
+    print()
+
+
+# ═════════════════════════════════════════════════════════════════════════
+# Main
+# ═════════════════════════════════════════════════════════════════════════
+
+
+def main():
+    banner("HelioX RAG 3.0 — Pipeline Runner")
+
+    pdf_path = Path(r"c:\HelioX\test.pdf")
+    if not pdf_path.exists():
+        print(f"\n  {RED}ERROR: {pdf_path} not found.{RESET}")
+        sys.exit(1)
+
+    print(f"\n  {DIM}Document:{RESET} {pdf_path}")
+    print(f"  {DIM}Pipeline:{RESET} Query → Analyze → Validate → Route → Retrieve")
+    print(f"           {DIM}→ Workers → Synthesize → Adjudicate → Compose{RESET}")
+    print(f"           {DIM}→ Confidence Gate → Memory → Deliver{RESET}")
+    print()
+
+    while True:
+        try:
+            query = input(f"  {YELLOW}{BOLD}Enter your query{RESET} (or 'quit'): ").strip()
+        except (EOFError, KeyboardInterrupt):
+            print(f"\n\n  {DIM}Goodbye!{RESET}\n")
+            break
+
+        if not query or query.lower() in ("quit", "exit", "q"):
+            print(f"\n  {DIM}Goodbye!{RESET}\n")
+            break
+
+        asyncio.run(run_pipeline(query, pdf_path))
+        print()
+
+
+if __name__ == "__main__":
+    main()
+===
+#!/usr/bin/env python3
+"""
+═══════════════════════════════════════════════════════════════════════════
+  HelioX RAG 3.0 — Unified Pipeline Runner
+═══════════════════════════════════════════════════════════════════════════
+
+  Run:  python run_pipeline.py
+
+  This script ingests test.pdf, asks you for a query, and processes it
+  through the full 12-layer RAG pipeline with live stage visualization.
+
+  External services (Gemini, Redis, Qdrant) are mocked so the pipeline
+  runs entirely locally — demonstrating orchestration, synthesis,
+  adjudication, confidence gating, and answer composition.
+═══════════════════════════════════════════════════════════════════════════
+"""
+
+from __future__ import annotations
+
+import asyncio
+import sys
+import os
+import time
+import uuid
+from datetime import datetime, timezone
+from pathlib import Path
+from unittest.mock import AsyncMock, MagicMock, patch
+
+# Force UTF-8 output on Windows
+if sys.platform == "win32":
+    os.system("")  # enable ANSI escape on Windows terminal
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+
+# ── Patch external services before any HelioX imports ─────────────────
+_mock_redis = patch("memory.session_store.redis.from_url", return_value=MagicMock())
+_mock_gemini = patch("composer.generator.genai.Client", autospec=True)
+_mock_redis.start()
+_mock_gemini.start()
+
+# ── HelioX imports ────────────────────────────────────────────────────
+from ingestion.pipeline import ingest_file
+from query_pipeline.analyzer import QueryAnalyzer
+from query_pipeline.schemas import (
+    QueryAnalysisResponse,
+    QueryConstraints,
+    QueryIntent,
+    StructuredQueryObject,
+    TemporalConstraint,
+)
+from query_pipeline.validator import QueryValidationAgent
+from orchestrator.mode_controller import ModeController
+from orchestrator.schemas import ExecutionMode
+from retrieval.schemas import ScoredChunk
+from workers.schemas import PoolResult, TokenUsage, WorkerOutput, WorkerStatus
+from synthesis.synthesizer import CrossChunkSynthesizer
+from adjudication.engine import AdjudicationEngine
+from composer.schemas import AnswerMetadata, FinalAnswer
+from confidence.engine import ConfidenceEngine
+from confidence.schemas import ConfidenceAction
+
+
+# ═════════════════════════════════════════════════════════════════════════
+# Console Helpers
+# ═════════════════════════════════════════════════════════════════════════
+
+CYAN    = "\033[96m"
+GREEN   = "\033[92m"
+YELLOW  = "\033[93m"
+RED     = "\033[91m"
+MAGENTA = "\033[95m"
+BOLD    = "\033[1m"
+DIM     = "\033[2m"
+RESET   = "\033[0m"
+BOX_H   = "═"
+BOX_TL  = "╔"
+BOX_TR  = "╗"
+BOX_BL  = "╚"
+BOX_BR  = "╝"
+BOX_V   = "║"
+ARROW   = "►"
+
+
+def banner(title: str, color: str = CYAN):
+    w = 70
+    print()
+    print(f"{color}{BOX_TL}{BOX_H * (w-2)}{BOX_TR}{RESET}")
+    print(f"{color}{BOX_V}  {BOLD}{title.center(w-6)}{RESET}{color}  {BOX_V}{RESET}")
+    print(f"{color}{BOX_BL}{BOX_H * (w-2)}{BOX_BR}{RESET}")
+
+
+def stage_header(number: int, name: str):
+    print(f"\n  {CYAN}{BOLD}[Stage {number}]{RESET}  {YELLOW}{ARROW}{RESET} {BOLD}{name}{RESET}")
+    print(f"  {DIM}{'─' * 58}{RESET}")
+
+
+def detail(label: str, value, indent: int = 4):
+    pad = " " * indent
+    print(f"{pad}{DIM}│{RESET} {GREEN}{label}:{RESET} {value}")
+
+
+def success(msg: str, indent: int = 4):
+    pad = " " * indent
+    print(f"{pad}{GREEN}✓{RESET} {msg}")
+
+
+def warn(msg: str, indent: int = 4):
+    pad = " " * indent
+    print(f"{pad}{YELLOW}⚠{RESET} {msg}")
+
+
+def section_break():
+    print(f"  {DIM}{'─' * 58}{RESET}")
+
+
+# ═════════════════════════════════════════════════════════════════════════
+# Pipeline
+# ═════════════════════════════════════════════════════════════════════════
+
+
+async def run_pipeline(query: str, pdf_path: Path):
+    """Execute the full 12-layer RAG pipeline with live visualization."""
+
+    query_id = str(uuid.uuid4())[:8]
+    timings: dict[str, float] = {}
+
+    # ─────────────────────────────────────────────────────────────────
+    # STAGE 0  — Document Ingestion
+    # ─────────────────────────────────────────────────────────────────
+    stage_header(0, "Document Ingestion")
+    t0 = time.perf_counter()
+    doc_graph = ingest_file(pdf_path)
+    timings["ingestion"] = (time.perf_counter() - t0) * 1000
+
+    detail("Document ID", doc_graph.document_id)
+    detail("Total Chunks", doc_graph.total_chunks)
+    detail("Format", pdf_path.suffix.upper())
+    detail("Time", f"{timings['ingestion']:.1f} ms")
+    for i, chunk in enumerate(doc_graph.chunks[:3]):
+        preview = chunk.text[:80].replace("\n", " ") + "…"
+        detail(f"Chunk {i+1}", f'"{preview}"')
+    if doc_graph.total_chunks > 3:
+        detail("...", f"({doc_graph.total_chunks - 3} more chunks)")
+    success(f"Ingested {doc_graph.total_chunks} chunks from {pdf_path.name}")
+
+    # ─────────────────────────────────────────────────────────────────
+    # STAGE 0.5 — Expert Profiling → PostgreSQL
+    # ─────────────────────────────────────────────────────────────────
+    stage_header(0, "Expert Profiling → PostgreSQL (chunk_profiles)")
+    t0 = time.perf_counter()
+
+    from profiling.integration import _build_profile_requests, _flatten_sections
+    from profiling.schemas import ChunkProfileResult, ConstraintMetadata
+    from profiling.metadata_extractor import ConstraintExtractor
+    from profiling.authority import AuthorityScorer
+    from profiling.models import ProfilingBase, ChunkProfile, ProfileStatus
+    from profiling.clients import get_postgres_engine
+
+    profile_requests = _build_profile_requests(doc_graph)
+    detail("Profile Requests", len(profile_requests))
+
+    # Run deterministic sub-services (no external API calls)
+    constraint_extractor = ConstraintExtractor()
+    authority_scorer = AuthorityScorer()
+
+    texts = [r.text for r in profile_requests]
+    titles = [r.section_title for r in profile_requests]
+    constraints_list = constraint_extractor.extract_batch(texts, titles)
+    authority_scores = authority_scorer.score_batch(
+        [
+            {
+                "source_type": r.document_source_type,
+                "section_level": r.section_level,
+                "chunk_position": r.chunk_position,
+                "document_ingested_at": r.document_ingested_at,
+            }
+            for r in profile_requests
+        ]
+    )
+
+    # Build ChunkProfileResult objects with placeholder embeddings
+    dim = 768
+    now_utc = datetime.now(timezone.utc)
+    profile_results: list[ChunkProfileResult] = []
+    for i, req in enumerate(profile_requests):
+        result = ChunkProfileResult(
+            chunk_id=req.chunk_id,
+            document_id=req.document_id,
+            section_id=req.section_id,
+            semantic_embedding=[0.0] * dim,
+            entity_vector=[0.0] * dim,
+            hyde_embedding=[0.0] * dim,
+            entities=[],
+            constraints=constraints_list[i],
+            authority_score=authority_scores[i],
+            embedding_model_id="placeholder",
+            embedding_model_version="placeholder",
+            profiled_at=now_utc,
+        )
+        profile_results.append(result)
+
+    detail("Profiles Built", len(profile_results))
+
+    # Create tables + insert into PostgreSQL
+    from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+
+    async def _persist_profiles():
+        engine = await get_postgres_engine()
+        # Create chunk_profiles table if absent
+        async with engine.begin() as conn:
+            await conn.run_sync(ProfilingBase.metadata.create_all)
+
+        factory = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+        async with factory() as session:
+            for r in profile_results:
+                profile = ChunkProfile(
+                    chunk_id=r.chunk_id,
+                    document_id=r.document_id,
+                    section_id=r.section_id,
+                    embedding_model_id=r.embedding_model_id,
+                    embedding_model_version=r.embedding_model_version,
+                    authority_score=r.authority_score,
+                    temporal_start=r.constraints.temporal_start,
+                    temporal_end=r.constraints.temporal_end,
+                    geographic_scope=r.constraints.geographic_scope,
+                    applicability_scope=r.constraints.applicability_scope,
+                    entity_list=r.entities,
+                    status=ProfileStatus.COMPLETED,
+                    profiled_at=r.profiled_at,
+                )
+                session.add(profile)
+            await session.commit()
+
+    await _persist_profiles()
+
+    timings["profiling_pg"] = (time.perf_counter() - t0) * 1000
+    detail("Time", f"{timings['profiling_pg']:.1f} ms")
+    success(f"Inserted {len(profile_results)} chunk profiles into PostgreSQL (chunk_profiles)")
+
+    # ─────────────────────────────────────────────────────────────────
+    # STAGE 1  — Query Analysis (Intent + Entity + Constraint)
+    # ─────────────────────────────────────────────────────────────────
+    stage_header(1, "Query Analysis")
+    t0 = time.perf_counter()
+
+    analyzer = QueryAnalyzer()
+    # We mock the async analyze call to avoid Gemini dependency
+    # but run the real intent/entity/constraint extraction internally
+    from query_pipeline.intent_classifier import IntentClassifier
+    from query_pipeline.entity_extractor import QueryEntityExtractor
+    from query_pipeline.constraint_extractor import QueryConstraintExtractor
+
+    classifier = IntentClassifier()
+    entity_extractor = QueryEntityExtractor()
+    constraint_extractor = QueryConstraintExtractor()
+
+    intent_result = classifier.classify(query)
+    entity_result = entity_extractor.extract(query)
+    entities_list = entity_result.entities  # list[str]
+    constraints = constraint_extractor.extract(query)
+
+    sqo = StructuredQueryObject(
+        original_query=query,
+        intent=intent_result.intent,
+        entities=entities_list,
+        constraints=constraints,
+        fact_components=[query],
+        reasoning_components=[],
+        decomposition_confidence=0.85,
+    )
+
+    timings["analysis"] = (time.perf_counter() - t0) * 1000
+    detail("Intent", f"{intent_result.intent.value} (confidence: {intent_result.confidence:.2f})")
+    detail("Entities", entities_list if entities_list else "[none detected]")
+    detail("Constraints", f"temporal={constraints.temporal}, geo={constraints.geographic}")
+    detail("Fact Components", sqo.fact_components)
+    detail("Time", f"{timings['analysis']:.1f} ms")
+    success("Query analyzed successfully")
+
+    # ─────────────────────────────────────────────────────────────────
+    # STAGE 2  — SQO Validation & Locking
+    # ─────────────────────────────────────────────────────────────────
+    stage_header(2, "SQO Validation & Locking")
+    t0 = time.perf_counter()
+
+    validator = QueryValidationAgent()
+    report = validator.validate(sqo)
+
+    timings["validation"] = (time.perf_counter() - t0) * 1000
+    detail("Verdict", report.verdict.value)
+    detail("Corrections", len(report.corrections))
+    detail("Warnings", len(report.warnings))
+    detail("Confidence", f"{report.confidence.overall_score:.3f}")
+    detail("Locked", sqo.locked)
+    for w in report.warnings[:3]:
+        warn(f"[{w.code}] {w.message}")
+    detail("Time", f"{timings['validation']:.1f} ms")
+    success(f"SQO {report.verdict.value} and {'locked' if sqo.locked else 'NOT locked'}")
+
+    # ─────────────────────────────────────────────────────────────────
+    # STAGE 3  — Mode Selection (LIGHT / HEAVY)
+    # ─────────────────────────────────────────────────────────────────
+    stage_header(3, "Mode Selection")
+    t0 = time.perf_counter()
+
+    mode_ctrl = ModeController()
+    ambiguity = any(w.code == "AMBIGUITY" for w in report.warnings)
+    mode_sel = mode_ctrl.select_initial_mode(sqo.intent, ambiguity)
+    mode = mode_sel.selected_mode
+
+    timings["mode"] = (time.perf_counter() - t0) * 1000
+    detail("Selected Mode", f"{BOLD}{mode.value.upper()}{RESET}")
+    detail("Reasoning", mode_sel.reasoning)
+    detail("Ambiguity Detected", ambiguity)
+    detail("Time", f"{timings['mode']:.1f} ms")
+    success(f"Pipeline routed to {mode.value.upper()} mode")
+
+    # ─────────────────────────────────────────────────────────────────
+    # STAGE 4  — Hybrid Retrieval (Simulated from ingested chunks)
+    # ─────────────────────────────────────────────────────────────────
+    stage_header(4, "Hybrid Retrieval")
+    t0 = time.perf_counter()
+
+    scored_chunks = [
+        ScoredChunk(
+            chunk_id=c.id,
+            document_id=doc_graph.document_id,
+            section_id=c.section_id,
+            text=c.text,
+            semantic_similarity=round(0.95 - i * 0.05, 2),
+            weighted_score=round(0.93 - i * 0.04, 2),
+            entities=[],
+        )
+        for i, c in enumerate(doc_graph.chunks)
+    ]
+
+    timings["retrieval"] = (time.perf_counter() - t0) * 1000
+    detail("Chunks Retrieved", len(scored_chunks))
+    for i, sc in enumerate(scored_chunks[:5]):
+        preview = sc.text[:60].replace("\n", " ") + "…"
+        detail(f"  [{i+1}] sim={sc.semantic_similarity:.2f}", f'"{preview}"')
+    detail("Time", f"{timings['retrieval']:.1f} ms")
+    success(f"Retrieved {len(scored_chunks)} chunks ranked by weighted score")
+
+    # ─────────────────────────────────────────────────────────────────
+    # STAGE 5  — Parallel Worker Execution
+    # ─────────────────────────────────────────────────────────────────
+    stage_header(5, "Multi-Agent Worker Pool")
+    t0 = time.perf_counter()
+
+    worker_outputs = []
+    for i, sc in enumerate(scored_chunks):
+        # Simulate worker claim extraction from chunk text
+        claim = sc.text[:120].replace("\n", " ").strip()
+        wo = WorkerOutput(
+            worker_id=f"worker-{i+1}",
+            chunk_id=sc.chunk_id,
+            status=WorkerStatus.SUFFICIENT,
+            claim=claim,
+            supporting_spans=[],
+            reasoning_trace=f"Chunk {sc.chunk_id[:8]} evaluated — evidence sufficient.",
+            confidence_local=round(0.90 - i * 0.02, 2),
+            coverage_score=round(0.85 - i * 0.03, 2),
+            token_usage=TokenUsage(input_tokens=150, output_tokens=60, total_tokens=210),
+        )
+        worker_outputs.append(wo)
+
+    pool_result = PoolResult(
+        outputs=worker_outputs,
+        total_workers=len(worker_outputs),
+        completed_workers=len(worker_outputs),
+        sufficient_count=len(worker_outputs),
+        insufficient_count=0,
+        error_count=0,
+        total_tokens_used=210 * len(worker_outputs),
+        token_budget=19200,
+        aggregate_confidence=sum(w.confidence_local for w in worker_outputs) / len(worker_outputs),
+        early_stopped=False,
+        timed_out=False,
+        duration_ms=50,
+    )
+
+    timings["workers"] = (time.perf_counter() - t0) * 1000
+    detail("Workers Dispatched", pool_result.total_workers)
+    detail("Sufficient", pool_result.sufficient_count)
+    detail("Aggregate Confidence", f"{pool_result.aggregate_confidence:.3f}")
+    detail("Token Budget Used", f"{pool_result.total_tokens_used} / {pool_result.token_budget}")
+    for wo in worker_outputs[:3]:
+        preview = wo.claim[:70] + "…"
+        detail(f"  Worker {wo.worker_id}", f'"{preview}"')
+    detail("Time", f"{timings['workers']:.1f} ms")
+    success(f"{pool_result.sufficient_count}/{pool_result.total_workers} workers returned SUFFICIENT claims")
+
+    # ─────────────────────────────────────────────────────────────────
+    # STAGE 6  — Cross-Chunk Synthesis
+    # ─────────────────────────────────────────────────────────────────
+    stage_header(6, "Cross-Chunk Synthesis")
+    t0 = time.perf_counter()
+
+    synthesizer = CrossChunkSynthesizer()
+    synthesis_result = synthesizer.synthesize(worker_outputs, sqo)
+
+    timings["synthesis"] = (time.perf_counter() - t0) * 1000
+    detail("Claims Input", synthesis_result.total_claims_input)
+    detail("After Dedup", synthesis_result.total_claims_after_dedup)
+    detail("Conflict Candidates", len(synthesis_result.conflict_candidates))
+    detail("Global Coverage", f"{synthesis_result.global_coverage:.3f}")
+    detail("Complementary Groups", synthesis_result.complementary_groups)
+    for i, mc in enumerate(synthesis_result.merged_claims[:3]):
+        preview = mc.claim_text[:70] + "…"
+        detail(f"  Claim {i+1}", f'"{preview}"')
+    detail("Time", f"{timings['synthesis']:.1f} ms")
+    success(f"Synthesized {len(synthesis_result.merged_claims)} merged claims, {len(synthesis_result.conflict_candidates)} conflicts")
+
+    # ─────────────────────────────────────────────────────────────────
+    # STAGE 7  — Adjudication Engine
+    # ─────────────────────────────────────────────────────────────────
+    stage_header(7, "Adjudication Engine")
+    t0 = time.perf_counter()
+
+    adjudicator = AdjudicationEngine()
+    adj_result = adjudicator.adjudicate(synthesis_result, worker_outputs)
+
+    timings["adjudication"] = (time.perf_counter() - t0) * 1000
+    detail("Total Conflicts", adj_result.total_conflicts)
+    detail("Resolved", adj_result.resolved_count)
+    detail("Unresolved", adj_result.unresolved_count)
+    detail("Selected Claims", len(adj_result.selected_claims))
+    detail("Rejected Claims", len(adj_result.rejected_claims))
+    detail("Updated Confidence", f"{adj_result.updated_confidence:.4f}")
+    detail("Penalty", f"{adj_result.confidence_penalty:.4f}")
+    detail("Time", f"{timings['adjudication']:.1f} ms")
+    success(f"Adjudication complete — {len(adj_result.selected_claims)} claims selected")
+
+    # ─────────────────────────────────────────────────────────────────
+    # STAGE 8  — Answer Composition
+    # ─────────────────────────────────────────────────────────────────
+    stage_header(8, "Answer Composition")
+    t0 = time.perf_counter()
+
+    # Build the answer from selected claims (mock LLM generation)
+    citations_text = []
+    for i, claim in enumerate(adj_result.selected_claims[:5]):
+        cid = f"[C{i+1}]"
+        citations_text.append(f"{claim.claim_text} {cid}")
+
+    direct_answer = " ".join(citations_text) if citations_text else "Insufficient evidence."
+
+    # Compute coverage
+    covered_comps = set()
+    for c in adj_result.selected_claims:
+        covered_comps.update(c.fact_components_addressed)
+    coverage = len(covered_comps) / max(1, len(sqo.fact_components))
+
+    final_answer = FinalAnswer(
+        direct_answer=direct_answer,
+        supporting_evidence=[],
+        metadata=AnswerMetadata(
+            constraints_applied={"scope": sqo.constraints.scope or "section-level"},
+            confidence_score=adj_result.updated_confidence,
+            coverage_score=coverage,
+            conflict_notes=[
+                f"Conflict resolved: {log.resolution.resolution_method}"
+                for log in adj_result.conflict_log
+            ],
+        ),
+    )
+
+    timings["composition"] = (time.perf_counter() - t0) * 1000
+    detail("Coverage", f"{coverage:.3f}")
+    detail("Citations Generated", min(5, len(adj_result.selected_claims)))
+    detail("Conflict Notes", len(final_answer.metadata.conflict_notes))
+    detail("Time", f"{timings['composition']:.1f} ms")
+    success("Answer composed with citations")
+
+    # ─────────────────────────────────────────────────────────────────
+    # STAGE 9  — Confidence Gate
+    # ─────────────────────────────────────────────────────────────────
+    stage_header(9, "Confidence Gate")
+    t0 = time.perf_counter()
+
+    confidence_engine = ConfidenceEngine()
+    conf_eval = confidence_engine.evaluate(
+        retrieval_coverage=coverage,
+        worker_agreement=adj_result.updated_confidence,
+        citation_density=0.85,
+        conflict_severity=min(1.0, adj_result.unresolved_count * 0.25),
+        authority_score=0.90,
+        avg_cosine_similarity=scored_chunks[0].semantic_similarity if scored_chunks else 0.0,
+    )
+
+    timings["confidence"] = (time.perf_counter() - t0) * 1000
+    detail("Global Confidence", f"{BOLD}{conf_eval.global_confidence:.4f}{RESET}")
+    detail("Action", f"{BOLD}{conf_eval.action.value}{RESET}")
+    detail("Sub-Scores", conf_eval.sub_scores)
+    detail("Time", f"{timings['confidence']:.1f} ms")
+
+    # Auto-escalation check
+    if mode == ExecutionMode.LIGHT and mode_ctrl.should_escalate(conf_eval.global_confidence):
+        warn("Auto-escalating LIGHT → HEAVY (confidence below threshold)")
+        mode = ExecutionMode.HEAVY
+
+    success(f"Confidence gate passed → {conf_eval.action.value}")
+
+    # ─────────────────────────────────────────────────────────────────
+    # STAGE 10 — Session Memory (Simulated)
+    # ─────────────────────────────────────────────────────────────────
+    stage_header(10, "Session Memory")
+    t0 = time.perf_counter()
+
+    session_id = str(uuid.uuid4())[:8]
+    timings["memory"] = (time.perf_counter() - t0) * 1000
+    detail("Session ID", session_id)
+    detail("Stored", "validated summary + constraints + answer")
+    detail("Excluded", "raw worker outputs, LLM speculation")
+    detail("Time", f"{timings['memory']:.1f} ms")
+    success("Interaction persisted to session memory")
+
+    # ─────────────────────────────────────────────────────────────────
+    # STAGE 11 — Final Delivery
+    # ─────────────────────────────────────────────────────────────────
+    total_time = sum(timings.values())
+
+    banner("FINAL ANSWER", GREEN)
+
+    print(f"\n  {BOLD}Query:{RESET}  {query}")
+    print(f"  {BOLD}Mode:{RESET}   {mode.value.upper()}")
+    print()
+
+    # Print answer with word wrapping
+    import textwrap
+    wrapped = textwrap.fill(final_answer.direct_answer, width=66, initial_indent="  ", subsequent_indent="  ")
+    print(f"{GREEN}{wrapped}{RESET}")
+
+    print()
+    print(f"  {DIM}{'─' * 66}{RESET}")
+    print(f"  {BOLD}Confidence:{RESET}      {conf_eval.global_confidence:.4f}  →  {conf_eval.action.value}")
+    print(f"  {BOLD}Coverage:{RESET}        {coverage:.3f}")
+    print(f"  {BOLD}Selected Claims:{RESET} {len(adj_result.selected_claims)}")
+    print(f"  {BOLD}Conflicts:{RESET}       {adj_result.total_conflicts} ({adj_result.resolved_count} resolved)")
+    print(f"  {BOLD}Total Latency:{RESET}   {total_time:.1f} ms")
+    print()
+
+    # Pipeline timing breakdown
+    banner("PIPELINE DIAGNOSTICS", MAGENTA)
+    print()
+    max_label = max(len(k) for k in timings)
+    max_val = max(timings.values()) if timings.values() else 1
+    for stage, ms in timings.items():
+        bar_len = int((ms / max_val) * 30) if max_val > 0 else 0
+        bar = "█" * bar_len + "░" * (30 - bar_len)
+        print(f"  {stage.rjust(max_label)}  {DIM}│{RESET} {CYAN}{bar}{RESET} {ms:7.1f} ms")
+    print(f"\n  {'TOTAL'.rjust(max_label)}  {DIM}│{RESET} {BOLD}{total_time:.1f} ms{RESET}")
+    print()
+
+
+# ═════════════════════════════════════════════════════════════════════════
+# Main
+# ═════════════════════════════════════════════════════════════════════════
+
+
+def main():
+    banner("HelioX RAG 3.0 — Pipeline Runner")
+
+    pdf_path = Path(r"c:\HelioX\test.pdf")
+    if not pdf_path.exists():
+        print(f"\n  {RED}ERROR: {pdf_path} not found.{RESET}")
+        sys.exit(1)
+
+    print(f"\n  {DIM}Document:{RESET} {pdf_path}")
+    print(f"  {DIM}Pipeline:{RESET} Query → Analyze → Validate → Route → Retrieve")
+    print(f"           {DIM}→ Workers → Synthesize → Adjudicate → Compose{RESET}")
+    print(f"           {DIM}→ Confidence Gate → Memory → Deliver{RESET}")
+    print()
+
+    while True:
+        try:
+            query = input(f"  {YELLOW}{BOLD}Enter your query{RESET} (or 'quit'): ").strip()
+        except (EOFError, KeyboardInterrupt):
+            print(f"\n\n  {DIM}Goodbye!{RESET}\n")
+            break
+
+        if not query or query.lower() in ("quit", "exit", "q"):
+            print(f"\n  {DIM}Goodbye!{RESET}\n")
+            break
+
+        asyncio.run(run_pipeline(query, pdf_path))
+        print()
+
+
+if __name__ == "__main__":
+    main()
+```
+
+**What the new stage does:**
+1. Builds [ChunkProfileRequest](file:///c:/HelioX/profiling/schemas.py#35-48) objects from ingested chunks via [_build_profile_requests()](file:///c:/HelioX/profiling/integration.py#36-74)
+2. Runs deterministic sub-services (constraint extraction + authority scoring) — no external API calls needed
+3. Constructs [ChunkProfileResult](file:///c:/HelioX/profiling/schemas.py#50-82) objects with placeholder embeddings 
+4. Creates the [chunk_profiles](file:///c:/HelioX/retrieval/metadata_filter.py#87-164) table via `ProfilingBase.metadata.create_all` if it doesn't exist
+5. Inserts all profiles into PostgreSQL with `status = COMPLETED`
+
+### [.env](file:///c:/HelioX/.env)
+
+Created from [.env.example](file:///c:/HelioX/.env.example) so the application picks up `POSTGRES_URL` and other connection settings.
+
+## How to Verify
+
+**Prerequisite**: PostgreSQL must be running at `localhost:5432` with database `heliox` and user `heliox:heliox`.
+
+```bash
+python run_pipeline.py
+# Enter any query when prompted
+```
+
+Then connect to PostgreSQL and check:
+```sql
+SELECT chunk_id, document_id, section_id, authority_score, status 
+FROM chunk_profiles LIMIT 10;
+```
+
+You should see rows with `status = 'completed'` and valid chunk/document/section IDs.
+
+## Validation
+
+- ✅ Syntax check passed (`py_compile`)
+- ⏳ Runtime test requires PostgreSQL running locally

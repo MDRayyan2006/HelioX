@@ -1,0 +1,28 @@
+# Walkthrough: [show_data.py](file:///c:/HelioX/show_data.py) Output Fix
+
+## Problem
+[show_data.py](file:///c:/HelioX/show_data.py) hung for 30+ seconds and displayed nothing useful — Redis wasn't running (connection refused on `:6379`), Elasticsearch timed out with unclosed session warnings, and there were no timeouts to fail fast.
+
+## Root Cause
+1. No `asyncio.wait_for` timeouts on service connections — the script blocked indefinitely
+2. No PostgreSQL section, even though PG is the primary local data store
+3. Elasticsearch client was never closed, causing `Unclosed client session` warnings
+
+## Changes Made
+
+### [show_data.py](file:///c:/HelioX/show_data.py)
+
+- Added **5-second timeouts** via `asyncio.wait_for` around every service call
+- Added **PostgreSQL section** querying the `raw_chunks` table (84 rows found)
+- **Properly close** Elasticsearch client in a `finally` block
+- Split into [show_redis()](file:///c:/HelioX/show_data.py#8-30), [show_elasticsearch()](file:///c:/HelioX/show_data.py#32-71), [show_postgres()](file:///c:/HelioX/show_data.py#73-107) for clarity
+
+## Verification
+
+Script ran to completion instantly with **exit code 0**:
+
+| Service | Result |
+|---|---|
+| Redis | 0 keys (connected via local Redis — no hang) |
+| Elasticsearch | **12 documents** displayed from `chunks` index |
+| PostgreSQL | **84 rows** found in `raw_chunks` table, first 5 displayed |

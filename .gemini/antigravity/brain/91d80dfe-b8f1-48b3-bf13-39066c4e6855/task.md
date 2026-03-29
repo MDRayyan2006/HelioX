@@ -1,0 +1,31 @@
+# HelioX RAG 3.0 — Architecture Blueprint
+
+- [x] Explore workspace
+- [x] Create architecture blueprint document
+  - [x] High-level technical architecture
+  - [x] Service breakdown (microservice boundaries)
+  - [x] Data flow diagram (text-based)
+  - [x] Folder structure
+  - [x] API boundary definitions
+  - [x] Orchestrator interaction map
+  - [x] Failure-handling model
+  - [x] Cost-control strategy
+- [x] Final review
+- [x] Create Product Requirements Document (PRD)
+  - [x] Product Vision, Target Users, Problem Statement
+  - [x] Functional & Non-Functional Requirements
+  - [x] Performance, Scalability, Security
+  - [x] Cost Constraints & Evaluation Metrics
+  - [x] Failure Handling & MVP vs Full Version
+- [/] Build Ingestion Service (FastAPI)
+  - [ ] Project scaffolding and dependencies
+  - [ ] Database schema (SQLAlchemy models)
+  - [ ] Pydantic data models (request/response + internal)
+  - [ ] Format detection
+  - [ ] Parsers (PDF, TXT, CSV, HTML)
+  - [ ] Structural parsing & noise removal
+  - [ ] Parent–child graph construction
+  - [ ] Adaptive chunking (800–1200 tokens, 15% overlap)
+  - [ ] Ingestion pipeline orchestrator
+  - [ ] API routes (upload, status, list)
+  - [ ] App entrypoint and config

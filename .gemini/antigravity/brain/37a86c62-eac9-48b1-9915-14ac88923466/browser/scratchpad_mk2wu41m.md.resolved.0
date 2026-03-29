@@ -1,0 +1,10 @@
+# Task: Verify OLAP Query
+
+- [ ] Navigate to http://localhost:5173/
+- [ ] Click 'Upload Context Documents'
+- [ ] Upload [c:\HelioX\04OLAP.pdf](file:///HelioX/04OLAP.pdf)
+- [ ] Wait for upload completion (green checkmark)
+- [ ] Close Uploader Modal
+- [ ] Type 'what is OLAP' and submit
+- [ ] Verify 'SYNTHESIS COMPLETE' answer card
+- [ ] Capture screenshot and summarize answer

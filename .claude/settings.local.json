@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find ./helioLasthope -type f -name *.py)",
+      "Bash(find . -maxdepth 3 -type f -name *.py)",
+      "Bash(cd /d C:helioLasthope)",
+      "Bash(python -m evaluation.testsprite_runner)",
+      "Bash(python:*)",
+      "Bash(cat EOF '{query_id:req-test1,timestamp:2026-03-26T00:00:00Z,query:test query 1,pipeline_metrics:{total_duration_ms:1200,retry_count:0,max_retries_reached:false,total_chunks_retrieved:3},final_outcome:{verdict:PASS,confidence:0.85,hallucination_risk:0.1,coverage_score:0.9},strategies_used:{depth_k:3,routing:broaden=False,use_fallback=True,rewrite:context-aware},knowledge_used:{concepts:[vector database],entities:[qdrant]}}' '{query_id:req-test2,timestamp:2026-03-26T00:01:00Z,query:test query 2,pipeline_metrics:{total_duration_ms:1500,retry_count:1,max_retries_reached:false,total_chunks_retrieved:5},final_outcome:{verdict:FAIL,confidence:0.45,hallucination_risk:0.5,coverage_score:0.6},strategies_used:{depth_k:5,routing:broaden=True,use_fallback=False,rewrite:intent-rephrase},knowledge_used:{concepts:[],entities:[]}}' EOF python evaluation/dashboard_cli.py)",
+      "Bash(pip list:*)",
+      "Bash(xargs grep:*)"
+    ]
+  }
+}

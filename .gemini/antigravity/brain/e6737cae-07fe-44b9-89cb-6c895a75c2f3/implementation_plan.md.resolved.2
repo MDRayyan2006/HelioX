@@ -1,0 +1,37 @@
+# Goal Description
+The user wants to introduce a **Principal LLM** using a new Mistral API key (`Rf03Wz8of5nAFX5Ugs9kBPFWYJcZRm2D`) to replace Gemini in the Answer Composer (Stage 8) and to introduce LLM-based Adjudication (Stage 7).
+
+## Proposed Changes
+
+### Configuration Layer
+#### [MODIFY] [.env](file:///c:/HelioX/.env)
+- Add `MISTRAL_API_KEY_PRINCIPAL=Rf03Wz8of5nAFX5Ugs9kBPFWYJcZRm2D` to the environment variables.
+
+#### [MODIFY] [config.py](file:///c:/HelioX/ingestion/config.py)
+#### [MODIFY] [config.py](file:///c:/HelioX/query_pipeline/config.py)
+- Expose `mistral_api_key_principal` in both settings schemas alongside the existing keys.
+
+### Service Layer
+
+#### [MODIFY] [generator.py](file:///c:/HelioX/composer/generator.py)
+- Remove `google.genai` imports and instantiated client.
+- Instantiate `mistralai.Mistral` using `settings.mistral_api_key_principal`.
+- Update the [generate](file:///c:/HelioX/composer/generator.py#42-161) method:
+  - Call `client.chat.complete_async` (making the method async).
+  - Enforce `response_format={"type": "json_object"}`.
+  - Parse the output JSON directly into the `FinalAnswer` and `AnswerMetadata` objects.
+
+#### [MODIFY] [engine.py](file:///c:/HelioX/adjudication/engine.py)
+- Update `AdjudicationEngine._resolve_conflict` to call the Principal LLM when there's an unresolved conflict.
+  - Add an injected Mistral client initialized with the new key.
+  - If mathematical consensus (authority + agreement) fails to resolve the contradiction within 2 rounds, prompt Mistral to read the two conflicting claims and the user's intent, and return a JSON decision choosing the better claim or declaring it fundamentally unresolved.
+  - Parse the Mistral JSON to set `resolution.winner_id`.
+
+#### [MODIFY] [run_pipeline.py](file:///c:/HelioX/run_pipeline.py)
+- Update the Adjudication Engine (Stage 7) instantiation to pass the new client / `await` if necessary.
+- Update the Answer Composition (Stage 8) call to `await composer.generate`.
+
+## Verification Plan
+### Automated Tests
+- Run [run_pipeline.py](file:///C:/HelioX/run_pipeline.py) using `quit` trick to ensure it parses successfully without throwing import errors or missing key errors.
+- Query `"Does HelioX have robust context retrieval system?"` again to view the Stage 8 composition output formatted completely by Mistral.

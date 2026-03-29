@@ -1,0 +1,6 @@
+# Fix: show_data.py Unable to Display Output
+
+- [x] Diagnose the messy output (Unclosed client session, TLS SecurityWarning)
+- [x] Add `warnings.filterwarnings` to suppress the expected TLS warning
+- [x] Add `finally` block with `await es_client.close()` to properly clean up the session
+- [x] Verify the script runs cleanly with no trailing warnings

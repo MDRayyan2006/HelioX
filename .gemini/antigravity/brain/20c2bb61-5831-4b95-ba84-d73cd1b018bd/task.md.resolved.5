@@ -1,0 +1,20 @@
+# Cross-Chunk Synthesizer — Task Tracker
+
+## Planning
+- [x] Research architecture blueprint (§2.9)
+- [x] Review worker output schemas
+- [/] Write implementation plan
+- [ ] User approval
+
+## Implementation
+- [ ] Create `synthesis/__init__.py`
+- [ ] Create `synthesis/schemas.py` — MergedClaim, ConflictCandidate, EvidenceNode, SynthesisResult
+- [ ] Create `synthesis/dedup.py` — claim deduplication (similarity > 0.92 → merge)
+- [ ] Create `synthesis/conflict_detector.py` — contradiction candidate detection
+- [ ] Create `synthesis/evidence_graph.py` — evidence graph construction
+- [ ] Create `synthesis/synthesizer.py` — orchestrator: dedup → merge → conflict → graph → coverage
+- [ ] Update [pyproject.toml](file:///c:/HelioX/pyproject.toml)
+
+## Verification
+- [ ] Create `tests/test_synthesis.py`
+- [ ] Run tests and verify all pass

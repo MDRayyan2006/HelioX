@@ -1,0 +1,6 @@
+{
+  "artifactType":  "ARTIFACT_TYPE_WALKTHROUGH",
+  "summary":  "Walkthrough documenting the completed Query Validation Agent: confidence scorer, 6-check validation agent with correction capabilities, three-state verdicts, re-decompose loop, and 31 new tests.",
+  "updatedAt":  "2026-03-05T13:58:43.814019900Z",
+  "version":  "1"
+}

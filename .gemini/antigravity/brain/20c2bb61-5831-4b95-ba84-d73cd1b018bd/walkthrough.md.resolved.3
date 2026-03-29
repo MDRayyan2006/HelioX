@@ -1,0 +1,57 @@
+# Adjudication Engine — Walkthrough
+
+## What Was Built
+
+**Layer 10 — Adjudication Engine** per §2.10. Resolves conflicts from the synthesis layer using authority weighting, agreement scoring, and a re-verification loop.
+
+## Architecture
+
+```mermaid
+graph TD
+    CC["Conflict Candidates"] --> CONTRA["Semantic Contradiction<br/>Score ≤ 0.30 → confirmed"]
+    CONTRA -->|"confirmed"| AUTH["Authority Weighting<br/>6-component formula"]
+    CONTRA -->|"not confirmed"| PASS["Both claims coexist"]
+    AUTH --> AGREE["Agreement Scoring<br/>workers supporting / total"]
+    AGREE --> RECHECK{"Clear winner?<br/>&gt;5% margin"}
+    RECHECK -->|"Yes"| WIN["Accept winner<br/>Reject loser"]
+    RECHECK -->|"No"| LOOP{"Round &lt; 2?"}
+    LOOP -->|"Yes"| CONTRA
+    LOOP -->|"No"| UNRES["Unresolved<br/>Use highest weighted<br/>Reduce confidence"]
+    WIN --> RESULT["AdjudicationResult"]
+    UNRES --> RESULT
+    PASS --> RESULT
+```
+
+## Files Created
+
+| File | Purpose |
+|------|---------|
+| [schemas.py](file:///c:/HelioX/adjudication/schemas.py) | [ResolutionStatus](file:///c:/HelioX/adjudication/schemas.py#22-27), [AuthorityScore](file:///c:/HelioX/adjudication/schemas.py#34-44), [ConflictResolution](file:///c:/HelioX/adjudication/schemas.py#51-68), [ConflictLogEntry](file:///c:/HelioX/adjudication/schemas.py#75-82), [AdjudicationResult](file:///c:/HelioX/adjudication/schemas.py#89-101) |
+| [contradiction.py](file:///c:/HelioX/adjudication/contradiction.py) | Entailment scoring: content overlap + negation asymmetry. ≤ 0.30 = contradiction |
+| [authority.py](file:///c:/HelioX/adjudication/authority.py) | Weighted formula: `w1×recency + w2×source_rank + w3×citation_density + w4×worker_confidence + w5×cosine_similarity + w6×coverage` |
+| [consensus.py](file:///c:/HelioX/adjudication/consensus.py) | Agreement = `#workers supporting / total sufficient workers` |
+| [engine.py](file:///c:/HelioX/adjudication/engine.py) | [AdjudicationEngine](file:///c:/HelioX/adjudication/engine.py#30-278) — 2-round re-verification loop with resolution policy |
+| [\_\_init\_\_.py](file:///c:/HelioX/adjudication/__init__.py) | Package exports |
+
+## Bug Fix
+
+Initial entailment scoring had two issues:
+1. **Negated claims** (e.g. "is effective" vs "is not effective") scored above 0.30 due to high Jaccard overlap overshadowing the negation penalty
+2. **Unrelated claims** (e.g. "machine learning" vs "cooking") scored below 0.30 due to near-zero Jaccard
+
+**Fix**: Restructured scoring into 3 clean branches — contradiction (high overlap + negation → score × 0.25), agreement (high overlap, no negation), unrelated (neutral 0.50).
+
+## Test Results
+
+**15/15 tests passing** in 0.20s.
+
+| Test Group | Count | Coverage |
+|------------|-------|----------|
+| Contradiction detection | 3 | Confirmed, not confirmed, unrelated |
+| Authority weighting | 3 | Weighted formula, derived density, defaults |
+| Agreement scoring | 3 | Support ratio, no support, empty |
+| Engine | 6 | Resolved, unresolved, max rounds, no conflicts, end-to-end, multiple |
+
+```
+============================= 15 passed in 0.20s ==============================
+```

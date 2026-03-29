@@ -1,0 +1,24 @@
+# Build Query Analyzer Service
+
+## Planning
+- [x] Research existing codebase patterns (ingestion, profiling services)
+- [x] Write implementation plan
+- [x] Get user approval on plan
+
+## Implementation
+- [x] Create `query_pipeline/` package structure
+- [x] Create [query_pipeline/config.py](file:///c:/HelioX/query_pipeline/config.py) — service configuration
+- [x] Create [query_pipeline/schemas.py](file:///c:/HelioX/query_pipeline/schemas.py) — SQO schema + DTOs
+- [x] Create [query_pipeline/intent_classifier.py](file:///c:/HelioX/query_pipeline/intent_classifier.py) — intent classification
+- [x] Create [query_pipeline/entity_extractor.py](file:///c:/HelioX/query_pipeline/entity_extractor.py) — query entity extraction
+- [x] Create [query_pipeline/constraint_extractor.py](file:///c:/HelioX/query_pipeline/constraint_extractor.py) — constraint extraction
+- [x] Create [query_pipeline/decomposer.py](file:///c:/HelioX/query_pipeline/decomposer.py) — fact/reasoning decomposition
+- [x] Create [query_pipeline/analyzer.py](file:///c:/HelioX/query_pipeline/analyzer.py) — main analyzer orchestrator
+- [x] Create [query_pipeline/validator.py](file:///c:/HelioX/query_pipeline/validator.py) — SQO validation + locking
+- [x] Create API route [query_pipeline/routes.py](file:///c:/HelioX/query_pipeline/routes.py)
+- [x] Update [pyproject.toml](file:///c:/HelioX/pyproject.toml) with package + dependencies
+- [x] Update [.env.example](file:///c:/HelioX/.env.example) with new config vars
+
+## Verification
+- [x] Create [tests/test_query_analyzer.py](file:///c:/HelioX/tests/test_query_analyzer.py)
+- [x] Run tests and verify all pass — 55/55 passed

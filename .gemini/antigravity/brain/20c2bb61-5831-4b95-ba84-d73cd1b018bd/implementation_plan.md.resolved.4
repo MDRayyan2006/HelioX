@@ -1,0 +1,59 @@
+# Answer Composer — Implementation Plan
+
+Build **Layer 11 — Evidence-Bound Answer Composer** per §2.11. Generates the final answer using the filtered evidence from adjudication, enforcing sentence-level citation mapping and strict constraint application.
+
+## Proposed Changes
+
+### Schemas
+
+#### [NEW] [schemas.py](file:///c:/HelioX/composer/schemas.py)
+
+| Model | Purpose |
+|-------|---------|
+| `ComputedCitation` | Output citation mapping: `citation_id`, `chunk_id`, [span](file:///c:/HelioX/workers/worker.py#225-261), [text](file:///c:/HelioX/profiling/embedder.py#50-78) |
+| `AnswerMetadata` | Metadata block: `constraints_applied`, `confidence_score`, [coverage_score](file:///c:/HelioX/tests/test_workers.py#268-295), `conflict_notes` |
+| `FinalAnswer` | Top-level output: `direct_answer`, `supporting_evidence`, [metadata](file:///c:/HelioX/retrieval/metadata_filter.py#26-80) |
+
+---
+
+### Generation Logic
+
+#### [NEW] [prompts.py](file:///c:/HelioX/composer/prompts.py)
+
+- `COMPOSER_SYSTEM_PROMPT`: Strict rules enforcing exactly the JSON schema, that every factual claim must append `[C1]`, `[C2]` etc., and that constraints must be explicitly stated.
+- `build_composer_prompt`: Formats the Adjudicated Result claims (with auto-assigned Cx IDs) and SQO into the user payload.
+
+#### [NEW] [generator.py](file:///c:/HelioX/composer/generator.py)
+
+- `AnswerComposer.generate(sqo, adjudication_result)`:
+  1. Checks `global_coverage_score < 0.60`. If true, bypass LLM and return static `"Insufficient evidence to fully answer this query."` with partial results.
+  2. Assigns sequential IDs (`[C1]`, `[C2]`) to the `selected_claims`.
+  3. Calls LLM (Gemini API / mockable) with `response_format={"type": "json_object"}`.
+  4. Parses the JSON into `FinalAnswer`.
+  5. Populates constraints applied block and confidence/coverage from input metadata.
+
+---
+
+### Package & config
+
+#### [NEW] [\_\_init\_\_.py](file:///c:/HelioX/composer/__init__.py)
+
+#### [MODIFY] [pyproject.toml](file:///c:/HelioX/pyproject.toml)
+
+Add `"composer*"` to find include.
+
+---
+
+## Verification Plan
+
+### Automated Tests
+
+#### [NEW] [test_composer.py](file:///c:/HelioX/tests/test_composer.py)
+
+| Test | Verifies |
+|------|----------|
+| `test_insufficient_coverage` | Coverage < 0.60 bypasses LLM and returns fallback string. |
+| `test_llm_json_parsing` | Valid JSON from mock LLM is correctly unmarshalled. |
+| `test_fallback_json_parsing` | Fallbacks cleanly if LLM returns malformed JSON. |
+| `test_metadata_injection` | SQO constraints and Engine confidence mapped to output metadata. |
+| `test_citation_mapping` | Claims mapped nicely to [C1], [C2] format in the prompt payload. |

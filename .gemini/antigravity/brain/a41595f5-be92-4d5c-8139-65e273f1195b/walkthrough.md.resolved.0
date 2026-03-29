@@ -1,0 +1,73 @@
+# Query Analyzer Service — Walkthrough
+
+## What Was Built
+
+The **Layer 5 Structured Query Analyzer** for HelioX RAG 3.0, implementing FR-3.1 through FR-3.8. The service takes a raw user query and produces a locked **Structured Query Object (SQO)** for downstream retrieval.
+
+## Files Created
+
+| File | Purpose |
+|------|---------|
+| [__init__.py](file:///c:/HelioX/query_pipeline/__init__.py) | Package init |
+| [config.py](file:///c:/HelioX/query_pipeline/config.py) | Service settings (confidence threshold, retries, timeout) |
+| [schemas.py](file:///c:/HelioX/query_pipeline/schemas.py) | SQO schema, [QueryIntent](file:///c:/HelioX/query_pipeline/schemas.py#21-28) enum, constraints, API DTOs |
+| [intent_classifier.py](file:///c:/HelioX/query_pipeline/intent_classifier.py) | Rule-based 4-intent classifier (fact/comparison/synthesis/compliance) |
+| [entity_extractor.py](file:///c:/HelioX/query_pipeline/entity_extractor.py) | Query-focused NER (proper nouns, acronyms, regulations, dates) |
+| [constraint_extractor.py](file:///c:/HelioX/query_pipeline/constraint_extractor.py) | Temporal, geographic, regulatory, scope extraction |
+| [decomposer.py](file:///c:/HelioX/query_pipeline/decomposer.py) | LLM-based fact/reasoning decomposition with retry |
+| [validator.py](file:///c:/HelioX/query_pipeline/validator.py) | Ambiguity detection, constraint defaults, entity grounding, SQO lock |
+| [analyzer.py](file:///c:/HelioX/query_pipeline/analyzer.py) | Main orchestrator coordinating all 5 stages |
+| [routes.py](file:///c:/HelioX/query_pipeline/routes.py) | `POST /v1/query/analyze` FastAPI endpoint |
+
+## SQO Schema
+
+```json
+{
+  "query_id": "uuid",
+  "original_query": "string",
+  "intent": "fact | comparison | synthesis | compliance",
+  "entities": ["entity_a", "entity_b"],
+  "constraints": {
+    "temporal": {"after": "2024-01-01", "before": null},
+    "geographic": ["EU"],
+    "regulatory": ["GDPR"],
+    "scope": "section-level"
+  },
+  "fact_components": ["sub-question-1", "sub-question-2"],
+  "reasoning_components": ["compare X vs Y on dimension Z"],
+  "decomposition_confidence": 0.87,
+  "ambiguity_warnings": [],
+  "ungrounded_entities": [],
+  "locked": true
+}
+```
+
+## API Endpoint
+
+**`POST /v1/query/analyze`** — Input: `{query, session_context?}` → Output: `{sqo, warnings[], analysis_time_ms}`
+
+## Validation Rules
+
+| Rule | FR | Behavior |
+|------|-----|----------|
+| Ambiguity detection | FR-3.5 | Warns on no entities, short queries, or missing constraints |
+| Missing constraint injection | FR-3.5 | Defaults scope to `section-level` |
+| Entity grounding | FR-3.6 | Stub: marks entities as ungrounded (requires corpus) |
+| Decomposition confidence | FR-3.7 | Retries once if confidence < 0.65 |
+| SQO lock | FR-3.8 | Sets `locked=true` — immutable downstream |
+
+## Test Results
+
+**55 new tests across 7 test classes, all passing in 0.30s:**
+
+| Test Class | Tests | Coverage |
+|------------|-------|----------|
+| [TestIntentClassifier](file:///c:/HelioX/tests/test_query_analyzer.py#38-126) | 16 | All 4 intents, fallback, edge cases |
+| [TestQueryEntityExtractor](file:///c:/HelioX/tests/test_query_analyzer.py#133-172) | 7 | Proper nouns, acronyms, regulations, dates, dedup |
+| [TestQueryConstraintExtractor](file:///c:/HelioX/tests/test_query_analyzer.py#179-247) | 12 | Temporal, geographic, regulatory, scope |
+| [TestQueryDecomposer](file:///c:/HelioX/tests/test_query_analyzer.py#254-333) | 6 | Mocked LLM: success, retry, failure, JSON parsing |
+| [TestSQOValidator](file:///c:/HelioX/tests/test_query_analyzer.py#340-412) | 6 | Ambiguity, constraints, locking, confidence |
+| [TestSQOSchemas](file:///c:/HelioX/tests/test_query_analyzer.py#419-474) | 6 | Serialization, validation, enums |
+| [TestQueryAnalyzer](file:///c:/HelioX/tests/test_query_analyzer.py#481-541) | 2 | Full pipeline integration (mocked LLM) |
+
+Full regression suite: **99 tests pass** (1 pre-existing broken integration test excluded).

@@ -1,0 +1,6 @@
+# Refactoring Query Decomposer to Use Groq
+
+- [x] Update [query_pipeline/decomposer.py](file:///c:/HelioX/query_pipeline/decomposer.py) to use `groq.AsyncGroq` instead of Mistral
+- [x] Use the provided Groq API key: `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`
+- [x] Ensure [_call_llm](file:///c:/HelioX/workers/worker.py#143-212) uses Groq's `llama-3.1-8b-instant` or similar model
+- [x] Run [run_pipeline.py](file:///c:/HelioX/run_pipeline.py) with [04OLAP.pdf](file:///c:/HelioX/04OLAP.pdf) to verify no more 429s in Decomposer

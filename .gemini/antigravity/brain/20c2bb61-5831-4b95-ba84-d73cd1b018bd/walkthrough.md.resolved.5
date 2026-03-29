@@ -1,0 +1,52 @@
+# Confidence Engine — Walkthrough
+
+## What Was Built
+
+**Layer 12 — Confidence & Self-Validation Engine** per §2.12. Computes the [global_confidence](file:///c:/HelioX/tests/test_confidence.py#21-39) score using a rigid weighted equation across six pipeline metrics, then triggers one of four hardcoded escalation actions.
+
+## Architecture
+
+The engine accepts raw metric floats [0.0 - 1.0] and applies calibration weights.
+
+**Formula:**
+```python
+global_confidence = (
+    retrieval_coverage             * 0.20 +
+    citation_density               * 0.20 +
+    worker_agreement               * 0.20 +
+    (1.0 - conflict_severity)      * 0.15 +  # SEVERITY INVERTED
+    authority_score                * 0.15 +
+    avg_cosine_similarity          * 0.10
+)
+```
+
+**Decision Thresholds:**
+| Range | Action |
+|-------|--------|
+| `≥ 0.80` | `DELIVER` |
+| `0.60 - 0.79` | `DELIVER_WITH_WARNING` |
+| `0.40 - 0.59` | `EXPAND_RETRIEVAL` |
+| `< 0.40` | `REQUEST_CLARIFICATION` |
+
+## Files Created
+
+| File | Purpose |
+|------|---------|
+| [schemas.py](file:///c:/HelioX/confidence/schemas.py) | Defines [ConfidenceAction](file:///c:/HelioX/confidence/schemas.py#15-22) (Deliver, Warn, Expand, Clarify) and the [ConfidenceEvaluation](file:///c:/HelioX/confidence/schemas.py#29-36) output wrapper containing debugging `sub_scores`. |
+| [engine.py](file:///c:/HelioX/confidence/engine.py) | Contains [ConfidenceEngine](file:///c:/HelioX/confidence/engine.py#41-139) encapsulating the logic above. Values are safely clamped `[0.0, 1.0]` before applying weights. |
+| [\_\_init\_\_.py](file:///c:/HelioX/confidence/__init__.py) | Package exports. |
+
+## Test Results
+
+**11/11 tests passing**.
+
+| Parameterized Setup | Purpose |
+|---------------------|---------|
+| [test_global_confidence_calculation](file:///c:/HelioX/tests/test_confidence.py#21-39) | Manually verifies the explicit weights up to 4 decimal places. |
+| [test_inverted_conflict_severity](file:///c:/HelioX/tests/test_confidence.py#40-51) | Ensures that sending `severity=1.0` sets the metric pool contribution to `0.0`. |
+| [test_decision_thresholds](file:///c:/HelioX/tests/test_confidence.py#52-78) | 8 boundary edge-case tests hitting `1.0`, `0.80`, `0.79`, `0.60`, `0.59`, `0.40`, `0.39`, `0.00` proving absolute correctness on buckets. |
+| [test_missing_metrics_fallback](file:///c:/HelioX/tests/test_confidence.py#79-89) | Graceful fallback calculation if pipeline passes partial metrics. |
+
+```
+============================= 11 passed in 0.22s ==============================
+```

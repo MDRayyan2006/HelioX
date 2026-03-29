@@ -1,0 +1,23 @@
+# Hybrid Retrieval Engine — Task Tracker
+
+## Planning
+- [x] Research existing codebase (architecture, models, clients, schemas)
+- [/] Write implementation plan
+- [ ] User approval of plan
+
+## Implementation
+- [ ] Create `retrieval/__init__.py` — package init
+- [ ] Create `retrieval/config.py` — retrieval-specific settings
+- [ ] Create `retrieval/schemas.py` — Pydantic DTOs for retrieval I/O
+- [ ] Create `retrieval/scoring.py` — weighted scoring + recency/coverage helpers
+- [ ] Create `retrieval/metadata_filter.py` — Stage 1: PostgreSQL metadata filtering
+- [ ] Create `retrieval/entity_filter.py` — Stage 2: entity overlap matching
+- [ ] Create `retrieval/vector_search.py` — Stage 3: Qdrant cosine similarity search
+- [ ] Create `retrieval/fallback.py` — Stage 4: fallback broad retrieval
+- [ ] Create `retrieval/dynamic_k.py` — adaptive K with coverage gain
+- [ ] Create `retrieval/engine.py` — orchestration: stages → rank → dynamic K → final result
+- [ ] Update [pyproject.toml](file:///c:/HelioX/pyproject.toml) — add retrieval package
+
+## Verification
+- [ ] Create `tests/test_retrieval_engine.py` — unit tests
+- [ ] Run tests and verify all pass

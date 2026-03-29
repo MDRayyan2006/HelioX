@@ -1,0 +1,42 @@
+# Walkthrough: Output Display Fixes & Verification
+
+## Problem
+1. **Terminal Data Display ([show_data.py](file:///c:/HelioX/show_data.py))**: The script was displaying data, but the output was cluttered with warnings:
+   - `SecurityWarning: Connecting to 'https://localhost:9200' using TLS with verify_certs=False is insecure`
+   - `Unclosed client session` / `Unclosed connector` from `aiohttp` at the end of the script.
+2. **Frontend UI Display**: Needed a complete validation to ensure the entire system could display data.
+
+## Root Cause
+1. The `AsyncElasticsearch` client was instantiated with `verify_certs=False`, which triggers a Python `UserWarning` (specifically a `SecurityWarning` from [elasticsearch](file:///c:/HelioX/profiling/clients.py#93-106)).
+2. The `es_client` was never explicitly closed with `await es_client.close()`, leaving the underlying HTTP session open when the script exited.
+
+## Changes Made
+
+### [show_data.py](file:///c:/HelioX/show_data.py)
+
+- **Suppressed TLS Warning**: Added `warnings.filterwarnings("ignore", category=Warning, module="elasticsearch")` to keep the terminal output clean.
+- **Proper Client Cleanup**: Added a `finally:` block to the Elasticsearch try-catch:
+  ```python
+  finally:
+      try:
+          await es_client.close()
+      except Exception:
+          pass
+  ```
+
+## Verification
+
+### 1. Terminal Verification
+Ran `python show_data.py` and confirmed the output is completely clean with exit code 0:
+- **Redis**: "Found 0 keys in Redis." (working as expected, no data/no hang)
+- **Elasticsearch**: "Found 12 documents" and correctly prints the JSON of the first 5.
+- No warnings or tracebacks clutter the end of the data.
+
+### 2. Frontend Visual Verification
+Started the frontend via `npm run dev` and used the browser subagent to interact with the UI at `http://localhost:5173`.
+* Submitted the query: *"What is the core argument of this document?"*
+* The UI smoothly processed the query and displayed the **"Synthesis Complete"** answer card.
+
+![Frontend Output Display](file:///C:/Users/study/.gemini/antigravity/brain/37a86c62-eac9-48b1-9915-14ac88923466/frontend_response_success_1773065674137.png)
+
+Both the terminal diagnostic output and the web application interface are now displaying correctly without issues.

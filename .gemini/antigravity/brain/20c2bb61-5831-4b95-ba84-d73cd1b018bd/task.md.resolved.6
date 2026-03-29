@@ -1,0 +1,20 @@
+# Cross-Chunk Synthesizer — Task Tracker
+
+## Planning
+- [x] Research architecture blueprint (§2.9)
+- [x] Review worker output schemas
+- [x] Write implementation plan
+- [x] User approval
+
+## Implementation
+- [x] Create [synthesis/__init__.py](file:///c:/HelioX/synthesis/__init__.py)
+- [x] Create [synthesis/schemas.py](file:///c:/HelioX/synthesis/schemas.py) — MergedClaim, ConflictCandidate, EvidenceNode/Edge/Graph, SynthesisResult
+- [x] Create [synthesis/dedup.py](file:///c:/HelioX/synthesis/dedup.py) — claim deduplication (Jaccard > 0.92 → merge)
+- [x] Create [synthesis/conflict_detector.py](file:///c:/HelioX/synthesis/conflict_detector.py) — negation/antonym contradiction detection
+- [x] Create [synthesis/evidence_graph.py](file:///c:/HelioX/synthesis/evidence_graph.py) — evidence graph + global coverage
+- [x] Create [synthesis/synthesizer.py](file:///c:/HelioX/synthesis/synthesizer.py) — full pipeline orchestrator
+- [x] Update [pyproject.toml](file:///c:/HelioX/pyproject.toml)
+
+## Verification
+- [x] Create [tests/test_synthesis.py](file:///c:/HelioX/tests/test_synthesis.py) — 20 tests
+- [x] Run tests and verify all 20 pass ✓

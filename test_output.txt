@@ -1,0 +1,518 @@
+[MEMORY_STORE] Storage file not found: C:\Users\study\AppData\Local\Temp\test_mem_45lny2tz.json ù starting with empty memory
+[SESSION_MEMORY] SessionMemory initialized: 0 entities, 0 chunks, 0 concepts loaded from persistence
+[SESSION_MEMORY] Recorded attempt 1: 2 entities, 2 chunks (total unique entities: 2, total unique chunks: 2)
+[CONCEPT_DISCOVERY] Recorded 1 co-occurrence pairs from 2 entities (total tracked: 1)
+[SESSION_MEMORY] Outcome: confidence=0.85, verdict=PASS, retried=False \u2192 signal=strong_pos, delta=+0.15
+[CONCEPT_DISCOVERY] Updated success count for 1 pairs
+[MEMORY_STORE] Saved memory: 2 entities, 2 chunks, 0 concepts
+[SESSION_MEMORY] Updated 2 entity scores, 2 chunk scores (persisted)
+[MEMORY_STORE] Storage file not found: C:\Users\study\AppData\Local\Temp\test_mem_p0upegrp.json ù starting with empty memory
+[SESSION_MEMORY] SessionMemory initialized: 0 entities, 0 chunks, 0 concepts loaded from persistence
+[SESSION_MEMORY] Recorded attempt 1: 1 entities, 1 chunks (total unique entities: 1, total unique chunks: 1)
+[SESSION_MEMORY] Outcome: confidence=0.20, verdict=FAIL, retried=False \u2192 signal=strong_neg, delta=-0.15
+[MEMORY_STORE] Saved memory: 1 entities, 1 chunks, 0 concepts
+[SESSION_MEMORY] Updated 1 entity scores, 1 chunk scores (persisted)
+[MEMORY_STORE] Storage file not found: C:\Users\study\AppData\Local\Temp\test_mem_hv1oj219.json ù starting with empty memory
+[SESSION_MEMORY] SessionMemory initialized: 0 entities, 0 chunks, 0 concepts loaded from persistence
+[SESSION_MEMORY] Recorded attempt 1: 1 entities, 1 chunks (total unique entities: 1, total unique chunks: 1)
+[SESSION_MEMORY] Outcome: confidence=0.90, verdict=PASS, retried=False \u2192 signal=strong_pos, delta=+0.15
+[MEMORY_STORE] Saved memory: 1 entities, 1 chunks, 0 concepts
+[SESSION_MEMORY] Updated 1 entity scores, 1 chunk scores (persisted)
+[SESSION_MEMORY] Recorded attempt 2: 1 entities, 1 chunks (total unique entities: 1, total unique chunks: 1)
+[SESSION_MEMORY] Outcome: confidence=0.90, verdict=PASS, retried=False \u2192 signal=strong_pos, delta=+0.15
+[MEMORY_STORE] Saved memory: 1 entities, 1 chunks, 0 concepts
+[SESSION_MEMORY] Updated 1 entity scores, 1 chunk scores (persisted)
+[SESSION_MEMORY] Recorded attempt 3: 1 entities, 1 chunks (total unique entities: 1, total unique chunks: 1)
+[SESSION_MEMORY] Outcome: confidence=0.90, verdict=PASS, retried=False \u2192 signal=strong_pos, delta=+0.15
+[MEMORY_STORE] Saved memory: 1 entities, 1 chunks, 0 concepts
+[SESSION_MEMORY] Updated 1 entity scores, 1 chunk scores (persisted)
+[SESSION_MEMORY] Recorded attempt 4: 1 entities, 1 chunks (total unique entities: 1, total unique chunks: 1)
+[SESSION_MEMORY] Outcome: confidence=0.90, verdict=PASS, retried=False \u2192 signal=strong_pos, delta=+0.15
+[MEMORY_STORE] Saved memory: 1 entities, 1 chunks, 0 concepts
+[SESSION_MEMORY] Updated 1 entity scores, 1 chunk scores (persisted)
+[SESSION_MEMORY] Recorded attempt 5: 1 entities, 1 chunks (total unique entities: 1, total unique chunks: 1)
+[SESSION_MEMORY] Outcome: confidence=0.90, verdict=PASS, retried=False \u2192 signal=strong_pos, delta=+0.15
+[CONCEPT_DISCOVERY] No qualifying pairs for concept discovery
+[MEMORY_STORE] Saved memory: 1 entities, 1 chunks, 0 concepts
+[SESSION_MEMORY] Updated 1 entity scores, 1 chunk scores (persisted)
+[SESSION_MEMORY] Recorded attempt 6: 1 entities, 1 chunks (total unique entities: 1, total unique chunks: 1)
+[SESSION_MEMORY] Outcome: confidence=0.90, verdict=PASS, retried=False \u2192 signal=strong_pos, delta=+0.15
+[MEMORY_STORE] Saved memory: 1 entities, 1 chunks, 0 concepts
+[SESSION_MEMORY] Updated 1 entity scores, 1 chunk scores (persisted)
+[SESSION_MEMORY] Recorded attempt 7: 1 entities, 1 chunks (total unique entities: 1, total unique chunks: 1)
+[SESSION_MEMORY] Outcome: confidence=0.90, verdict=PASS, retried=False \u2192 signal=strong_pos, delta=+0.15
+[MEMORY_STORE] Saved memory: 1 entities, 1 chunks, 0 concepts
+[SESSION_MEMORY] Updated 1 entity scores, 1 chunk scores (persisted)
+[SESSION_MEMORY] Recorded attempt 8: 1 entities, 1 chunks (total unique entities: 1, total unique chunks: 1)
+[SESSION_MEMORY] Outcome: confidence=0.90, verdict=PASS, retried=False \u2192 signal=strong_pos, delta=+0.15
+[MEMORY_STORE] Saved memory: 1 entities, 1 chunks, 0 concepts
+[SESSION_MEMORY] Updated 1 entity scores, 1 chunk scores (persisted)
+[SESSION_MEMORY] Recorded attempt 9: 1 entities, 1 chunks (total unique entities: 1, total unique chunks: 1)
+[SESSION_MEMORY] Outcome: confidence=0.90, verdict=PASS, retried=False \u2192 signal=strong_pos, delta=+0.15
+[MEMORY_STORE] Saved memory: 1 entities, 1 chunks, 0 concepts
+[SESSION_MEMORY] Updated 1 entity scores, 1 chunk scores (persisted)
+[SESSION_MEMORY] Recorded attempt 10: 1 entities, 1 chunks (total unique entities: 1, total unique chunks: 1)
+[SESSION_MEMORY] Outcome: confidence=0.90, verdict=PASS, retried=False \u2192 signal=strong_pos, delta=+0.15
+[CONCEPT_DISCOVERY] No qualifying pairs for concept discovery
+[MEMORY_STORE] Saved memory: 1 entities, 1 chunks, 0 concepts
+[SESSION_MEMORY] Updated 1 entity scores, 1 chunk scores (persisted)
+[SESSION_MEMORY] Recorded attempt 11: 1 entities, 1 chunks (total unique entities: 1, total unique chunks: 1)
+[SESSION_MEMORY] Outcome: confidence=0.90, verdict=PASS, retried=False \u2192 signal=strong_pos, delta=+0.15
+[MEMORY_STORE] Saved memory: 1 entities, 1 chunks, 0 concepts
+[SESSION_MEMORY] Updated 1 entity scores, 1 chunk scores (persisted)
+[SESSION_MEMORY] Recorded attempt 12: 1 entities, 1 chunks (total unique entities: 1, total unique chunks: 1)
+[SESSION_MEMORY] Outcome: confidence=0.90, verdict=PASS, retried=False \u2192 signal=strong_pos, delta=+0.15
+[MEMORY_STORE] Saved memory: 1 entities, 1 chunks, 0 concepts
+[SESSION_MEMORY] Updated 1 entity scores, 1 chunk scores (persisted)
+[SESSION_MEMORY] Recorded attempt 13: 1 entities, 1 chunks (total unique entities: 1, total unique chunks: 1)
+[SESSION_MEMORY] Outcome: confidence=0.90, verdict=PASS, retried=False \u2192 signal=strong_pos, delta=+0.15
+[MEMORY_STORE] Saved memory: 1 entities, 1 chunks, 0 concepts
+[SESSION_MEMORY] Updated 1 entity scores, 1 chunk scores (persisted)
+[SESSION_MEMORY] Recorded attempt 14: 1 entities, 1 chunks (total unique entities: 1, total unique chunks: 1)
+[SESSION_MEMORY] Outcome: confidence=0.90, verdict=PASS, retried=False \u2192 signal=strong_pos, delta=+0.15
+[MEMORY_STORE] Saved memory: 1 entities, 1 chunks, 0 concepts
+[SESSION_MEMORY] Updated 1 entity scores, 1 chunk scores (persisted)
+[SESSION_MEMORY] Recorded attempt 15: 1 entities, 1 chunks (total unique entities: 1, total unique chunks: 1)
+[SESSION_MEMORY] Outcome: confidence=0.90, verdict=PASS, retried=False \u2192 signal=strong_pos, delta=+0.15
+[CONCEPT_DISCOVERY] No qualifying pairs for concept discovery
+[MEMORY_STORE] Saved memory: 1 entities, 1 chunks, 0 concepts
+[SESSION_MEMORY] Updated 1 entity scores, 1 chunk scores (persisted)
+[SESSION_MEMORY] Recorded attempt 16: 1 entities, 1 chunks (total unique entities: 1, total unique chunks: 1)
+[SESSION_MEMORY] Outcome: confidence=0.90, verdict=PASS, retried=False \u2192 signal=strong_pos, delta=+0.15
+[MEMORY_STORE] Saved memory: 1 entities, 1 chunks, 0 concepts
+[SESSION_MEMORY] Updated 1 entity scores, 1 chunk scores (persisted)
+[SESSION_MEMORY] Recorded attempt 17: 1 entities, 1 chunks (total unique entities: 1, total unique chunks: 1)
+[SESSION_MEMORY] Outcome: confidence=0.90, verdict=PASS, retried=False \u2192 signal=strong_pos, delta=+0.15
+[MEMORY_STORE] Saved memory: 1 entities, 1 chunks, 0 concepts
+[SESSION_MEMORY] Updated 1 entity scores, 1 chunk scores (persisted)
+[SESSION_MEMORY] Recorded attempt 18: 1 entities, 1 chunks (total unique entities: 1, total unique chunks: 1)
+[SESSION_MEMORY] Outcome: confidence=0.90, verdict=PASS, retried=False \u2192 signal=strong_pos, delta=+0.15
+[MEMORY_STORE] Saved memory: 1 entities, 1 chunks, 0 concepts
+[SESSION_MEMORY] Updated 1 entity scores, 1 chunk scores (persisted)
+[SESSION_MEMORY] Recorded attempt 19: 1 entities, 1 chunks (total unique entities: 1, total unique chunks: 1)
+[SESSION_MEMORY] Outcome: confidence=0.90, verdict=PASS, retried=False \u2192 signal=strong_pos, delta=+0.15
+[MEMORY_STORE] Saved memory: 1 entities, 1 chunks, 0 concepts
+[SESSION_MEMORY] Updated 1 entity scores, 1 chunk scores (persisted)
+[SESSION_MEMORY] Recorded attempt 20: 1 entities, 1 chunks (total unique entities: 1, total unique chunks: 1)
+[SESSION_MEMORY] Outcome: confidence=0.90, verdict=PASS, retried=False \u2192 signal=strong_pos, delta=+0.15
+[CONCEPT_DISCOVERY] No qualifying pairs for concept discovery
+[MEMORY_STORE] Saved memory: 1 entities, 1 chunks, 0 concepts
+[SESSION_MEMORY] Updated 1 entity scores, 1 chunk scores (persisted)
+[MEMORY_STORE] Storage file not found: C:\Users\study\AppData\Local\Temp\test_mem_bg5dn1ij.json ù starting with empty memory
+[SESSION_MEMORY] SessionMemory initialized: 0 entities, 0 chunks, 0 concepts loaded from persistence
+[SESSION_MEMORY] Recorded attempt 1: 1 entities, 1 chunks (total unique entities: 1, total unique chunks: 1)
+[SESSION_MEMORY] Outcome: confidence=0.10, verdict=FAIL, retried=False \u2192 signal=strong_neg, delta=-0.15
+[MEMORY_STORE] Saved memory: 1 entities, 1 chunks, 0 concepts
+[SESSION_MEMORY] Updated 1 entity scores, 1 chunk scores (persisted)
+[SESSION_MEMORY] Recorded attempt 2: 1 entities, 1 chunks (total unique entities: 1, total unique chunks: 1)
+[SESSION_MEMORY] Outcome: confidence=0.10, verdict=FAIL, retried=False \u2192 signal=strong_neg, delta=-0.15
+[MEMORY_STORE] Saved memory: 1 entities, 1 chunks, 0 concepts
+[SESSION_MEMORY] Updated 1 entity scores, 1 chunk scores (persisted)
+[SESSION_MEMORY] Recorded attempt 3: 1 entities, 1 chunks (total unique entities: 1, total unique chunks: 1)
+[SESSION_MEMORY] Outcome: confidence=0.10, verdict=FAIL, retried=False \u2192 signal=strong_neg, delta=-0.15
+[MEMORY_STORE] Saved memory: 1 entities, 1 chunks, 0 concepts
+[SESSION_MEMORY] Updated 1 entity scores, 1 chunk scores (persisted)
+[SESSION_MEMORY] Recorded attempt 4: 1 entities, 1 chunks (total unique entities: 1, total unique chunks: 1)
+[SESSION_MEMORY] Outcome: confidence=0.10, verdict=FAIL, retried=False \u2192 signal=strong_neg, delta=-0.15
+[MEMORY_STORE] Saved memory: 1 entities, 1 chunks, 0 concepts
+[SESSION_MEMORY] Updated 1 entity scores, 1 chunk scores (persisted)
+[SESSION_MEMORY] Recorded attempt 5: 1 entities, 1 chunks (total unique entities: 1, total unique chunks: 1)
+[SESSION_MEMORY] Outcome: confidence=0.10, verdict=FAIL, retried=False \u2192 signal=strong_neg, delta=-0.15
+[CONCEPT_DISCOVERY] No qualifying pairs for concept discovery
+[MEMORY_STORE] Saved memory: 1 entities, 1 chunks, 0 concepts
+[SESSION_MEMORY] Updated 1 entity scores, 1 chunk scores (persisted)
+[SESSION_MEMORY] Recorded attempt 6: 1 entities, 1 chunks (total unique entities: 1, total unique chunks: 1)
+[SESSION_MEMORY] Outcome: confidence=0.10, verdict=FAIL, retried=False \u2192 signal=strong_neg, delta=-0.15
+[MEMORY_STORE] Saved memory: 1 entities, 1 chunks, 0 concepts
+[SESSION_MEMORY] Updated 1 entity scores, 1 chunk scores (persisted)
+[SESSION_MEMORY] Recorded attempt 7: 1 entities, 1 chunks (total unique entities: 1, total unique chunks: 1)
+[SESSION_MEMORY] Outcome: confidence=0.10, verdict=FAIL, retried=False \u2192 signal=strong_neg, delta=-0.15
+[MEMORY_STORE] Saved memory: 1 entities, 1 chunks, 0 concepts
+[SESSION_MEMORY] Updated 1 entity scores, 1 chunk scores (persisted)
+[SESSION_MEMORY] Recorded attempt 8: 1 entities, 1 chunks (total unique entities: 1, total unique chunks: 1)
+[SESSION_MEMORY] Outcome: confidence=0.10, verdict=FAIL, retried=False \u2192 signal=strong_neg, delta=-0.15
+[MEMORY_STORE] Saved memory: 1 entities, 1 chunks, 0 concepts
+[SESSION_MEMORY] Updated 1 entity scores, 1 chunk scores (persisted)
+[SESSION_MEMORY] Recorded attempt 9: 1 entities, 1 chunks (total unique entities: 1, total unique chunks: 1)
+[SESSION_MEMORY] Outcome: confidence=0.10, verdict=FAIL, retried=False \u2192 signal=strong_neg, delta=-0.15
+[MEMORY_STORE] Saved memory: 1 entities, 1 chunks, 0 concepts
+[SESSION_MEMORY] Updated 1 entity scores, 1 chunk scores (persisted)
+[SESSION_MEMORY] Recorded attempt 10: 1 entities, 1 chunks (total unique entities: 1, total unique chunks: 1)
+[SESSION_MEMORY] Outcome: confidence=0.10, verdict=FAIL, retried=False \u2192 signal=strong_neg, delta=-0.15
+[CONCEPT_DISCOVERY] No qualifying pairs for concept discovery
+[MEMORY_STORE] Saved memory: 1 entities, 1 chunks, 0 concepts
+[SESSION_MEMORY] Updated 1 entity scores, 1 chunk scores (persisted)
+[SESSION_MEMORY] Recorded attempt 11: 1 entities, 1 chunks (total unique entities: 1, total unique chunks: 1)
+[SESSION_MEMORY] Outcome: confidence=0.10, verdict=FAIL, retried=False \u2192 signal=strong_neg, delta=-0.15
+[MEMORY_STORE] Saved memory: 1 entities, 1 chunks, 0 concepts
+[SESSION_MEMORY] Updated 1 entity scores, 1 chunk scores (persisted)
+[SESSION_MEMORY] Recorded attempt 12: 1 entities, 1 chunks (total unique entities: 1, total unique chunks: 1)
+[SESSION_MEMORY] Outcome: confidence=0.10, verdict=FAIL, retried=False \u2192 signal=strong_neg, delta=-0.15
+[MEMORY_STORE] Saved memory: 1 entities, 1 chunks, 0 concepts
+[SESSION_MEMORY] Updated 1 entity scores, 1 chunk scores (persisted)
+[SESSION_MEMORY] Recorded attempt 13: 1 entities, 1 chunks (total unique entities: 1, total unique chunks: 1)
+[SESSION_MEMORY] Outcome: confidence=0.10, verdict=FAIL, retried=False \u2192 signal=strong_neg, delta=-0.15
+[MEMORY_STORE] Saved memory: 1 entities, 1 chunks, 0 concepts
+[SESSION_MEMORY] Updated 1 entity scores, 1 chunk scores (persisted)
+[SESSION_MEMORY] Recorded attempt 14: 1 entities, 1 chunks (total unique entities: 1, total unique chunks: 1)
+[SESSION_MEMORY] Outcome: confidence=0.10, verdict=FAIL, retried=False \u2192 signal=strong_neg, delta=-0.15
+[MEMORY_STORE] Saved memory: 1 entities, 1 chunks, 0 concepts
+[SESSION_MEMORY] Updated 1 entity scores, 1 chunk scores (persisted)
+[SESSION_MEMORY] Recorded attempt 15: 1 entities, 1 chunks (total unique entities: 1, total unique chunks: 1)
+[SESSION_MEMORY] Outcome: confidence=0.10, verdict=FAIL, retried=False \u2192 signal=strong_neg, delta=-0.15
+[CONCEPT_DISCOVERY] No qualifying pairs for concept discovery
+[MEMORY_STORE] Saved memory: 1 entities, 1 chunks, 0 concepts
+[SESSION_MEMORY] Updated 1 entity scores, 1 chunk scores (persisted)
+[SESSION_MEMORY] Recorded attempt 16: 1 entities, 1 chunks (total unique entities: 1, total unique chunks: 1)
+[SESSION_MEMORY] Outcome: confidence=0.10, verdict=FAIL, retried=False \u2192 signal=strong_neg, delta=-0.15
+[MEMORY_STORE] Saved memory: 1 entities, 1 chunks, 0 concepts
+[SESSION_MEMORY] Updated 1 entity scores, 1 chunk scores (persisted)
+[SESSION_MEMORY] Recorded attempt 17: 1 entities, 1 chunks (total unique entities: 1, total unique chunks: 1)
+[SESSION_MEMORY] Outcome: confidence=0.10, verdict=FAIL, retried=False \u2192 signal=strong_neg, delta=-0.15
+[MEMORY_STORE] Saved memory: 1 entities, 1 chunks, 0 concepts
+[SESSION_MEMORY] Updated 1 entity scores, 1 chunk scores (persisted)
+[SESSION_MEMORY] Recorded attempt 18: 1 entities, 1 chunks (total unique entities: 1, total unique chunks: 1)
+[SESSION_MEMORY] Outcome: confidence=0.10, verdict=FAIL, retried=False \u2192 signal=strong_neg, delta=-0.15
+[MEMORY_STORE] Saved memory: 1 entities, 1 chunks, 0 concepts
+[SESSION_MEMORY] Updated 1 entity scores, 1 chunk scores (persisted)
+[SESSION_MEMORY] Recorded attempt 19: 1 entities, 1 chunks (total unique entities: 1, total unique chunks: 1)
+[SESSION_MEMORY] Outcome: confidence=0.10, verdict=FAIL, retried=False \u2192 signal=strong_neg, delta=-0.15
+[MEMORY_STORE] Saved memory: 1 entities, 1 chunks, 0 concepts
+[SESSION_MEMORY] Updated 1 entity scores, 1 chunk scores (persisted)
+[SESSION_MEMORY] Recorded attempt 20: 1 entities, 1 chunks (total unique entities: 1, total unique chunks: 1)
+[SESSION_MEMORY] Outcome: confidence=0.10, verdict=FAIL, retried=False \u2192 signal=strong_neg, delta=-0.15
+[CONCEPT_DISCOVERY] No qualifying pairs for concept discovery
+[MEMORY_STORE] Saved memory: 1 entities, 1 chunks, 0 concepts
+[SESSION_MEMORY] Updated 1 entity scores, 1 chunk scores (persisted)
+[MEMORY_STORE] Storage file not found: C:\Users\study\AppData\Local\Temp\test_mem_0afh3xnd.json ù starting with empty memory
+[SESSION_MEMORY] SessionMemory initialized: 0 entities, 0 chunks, 0 concepts loaded from persistence
+[SESSION_MEMORY] Recorded attempt 1: 1 entities, 1 chunks (total unique entities: 1, total unique chunks: 1)
+[SESSION_MEMORY] Outcome: confidence=0.85, verdict=PASS, retried=False \u2192 signal=strong_pos, delta=+0.15
+[MEMORY_STORE] Saved memory: 1 entities, 1 chunks, 0 concepts
+[SESSION_MEMORY] Updated 1 entity scores, 1 chunk scores (persisted)
+[SESSION_MEMORY] Recorded attempt 2: 1 entities, 1 chunks (total unique entities: 2, total unique chunks: 2)
+[SESSION_MEMORY] Outcome: confidence=0.20, verdict=FAIL, retried=False \u2192 signal=strong_neg, delta=-0.15
+[MEMORY_STORE] Saved memory: 2 entities, 2 chunks, 0 concepts
+[SESSION_MEMORY] Updated 1 entity scores, 1 chunk scores (1 entities decayed, 1 chunks decayed) (persisted)
+[SESSION_MEMORY] Entity boosts: 2 entries (0 concept-inferred)
+[MEMORY_STORE] Storage file not found: C:\Users\study\AppData\Local\Temp\test_mem_o84c93pm.json ù starting with empty memory
+[SESSION_MEMORY] SessionMemory initialized: 0 entities, 0 chunks, 0 concepts loaded from persistence
+[SESSION_MEMORY] Recorded attempt 1: 1 entities, 1 chunks (total unique entities: 1, total unique chunks: 1)
+[SESSION_MEMORY] Outcome: confidence=0.85, verdict=PASS, retried=False \u2192 signal=strong_pos, delta=+0.15
+[MEMORY_STORE] Saved memory: 1 entities, 1 chunks, 0 concepts
+[SESSION_MEMORY] Updated 1 entity scores, 1 chunk scores (persisted)
+[SESSION_MEMORY] Recorded attempt 2: 1 entities, 1 chunks (total unique entities: 2, total unique chunks: 2)
+[SESSION_MEMORY] Outcome: confidence=0.20, verdict=FAIL, retried=False \u2192 signal=strong_neg, delta=-0.15
+[MEMORY_STORE] Saved memory: 2 entities, 2 chunks, 0 concepts
+[SESSION_MEMORY] Updated 1 entity scores, 1 chunk scores (1 entities decayed, 1 chunks decayed) (persisted)
+[SESSION_MEMORY] Chunk scores: 2 entries
+[MEMORY_STORE] Storage file not found: C:\Users\study\AppData\Local\Temp\test_mem_u9bafqra.json ù starting with empty memory
+[SESSION_MEMORY] SessionMemory initialized: 0 entities, 0 chunks, 0 concepts loaded from persistence
+[SESSION_MEMORY] Recorded attempt 1: 1 entities, 1 chunks (total unique entities: 1, total unique chunks: 1)
+[SESSION_MEMORY] Outcome: confidence=0.85, verdict=PASS, retried=False \u2192 signal=strong_pos, delta=+0.15
+[MEMORY_STORE] Saved memory: 1 entities, 1 chunks, 0 concepts
+[SESSION_MEMORY] Updated 1 entity scores, 1 chunk scores (persisted)
+[SESSION_MEMORY] Recorded attempt 2: 1 entities, 1 chunks (total unique entities: 2, total unique chunks: 2)
+[SESSION_MEMORY] Outcome: confidence=0.85, verdict=PASS, retried=False \u2192 signal=strong_pos, delta=+0.15
+[MEMORY_STORE] Saved memory: 2 entities, 2 chunks, 0 concepts
+[SESSION_MEMORY] Updated 1 entity scores, 1 chunk scores (1 entities decayed, 1 chunks decayed) (persisted)
+[SESSION_MEMORY] Recorded attempt 3: 1 entities, 1 chunks (total unique entities: 3, total unique chunks: 3)
+[SESSION_MEMORY] Outcome: confidence=0.85, verdict=PASS, retried=False \u2192 signal=strong_pos, delta=+0.15
+[MEMORY_STORE] Saved memory: 3 entities, 3 chunks, 0 concepts
+[SESSION_MEMORY] Updated 1 entity scores, 1 chunk scores (2 entities decayed, 2 chunks decayed) (persisted)
+[SESSION_MEMORY] Memory quality: 0.147 (from 6 records)
+[MEMORY_STORE] Storage file not found: C:\Users\study\AppData\Local\Temp\test_mem_58bzclo8.json ù starting with empty memory
+[SESSION_MEMORY] SessionMemory initialized: 0 entities, 0 chunks, 0 concepts loaded from persistence
+[SESSION_MEMORY] Recorded attempt 1: 1 entities, 1 chunks (total unique entities: 1, total unique chunks: 1)
+[SESSION_MEMORY] Outcome: confidence=0.10, verdict=FAIL, retried=False \u2192 signal=strong_neg, delta=-0.15
+[MEMORY_STORE] Saved memory: 1 entities, 1 chunks, 0 concepts
+[SESSION_MEMORY] Updated 1 entity scores, 1 chunk scores (persisted)
+[SESSION_MEMORY] Recorded attempt 2: 1 entities, 1 chunks (total unique entities: 2, total unique chunks: 2)
+[SESSION_MEMORY] Outcome: confidence=0.10, verdict=FAIL, retried=False \u2192 signal=strong_neg, delta=-0.15
+[MEMORY_STORE] Saved memory: 2 entities, 2 chunks, 0 concepts
+[SESSION_MEMORY] Updated 1 entity scores, 1 chunk scores (1 entities decayed, 1 chunks decayed) (persisted)
+[SESSION_MEMORY] Recorded attempt 3: 1 entities, 1 chunks (total unique entities: 3, total unique chunks: 3)
+[SESSION_MEMORY] Outcome: confidence=0.10, verdict=FAIL, retried=False \u2192 signal=strong_neg, delta=-0.15
+[MEMORY_STORE] Saved memory: 3 entities, 3 chunks, 0 concepts
+[SESSION_MEMORY] Updated 1 entity scores, 1 chunk scores (2 entities decayed, 2 chunks decayed) (persisted)
+[SESSION_MEMORY] Memory quality: -0.147 (from 6 records)
+[MEMORY_STORE] Storage file not found: C:\Users\study\AppData\Local\Temp\test_mem_kce5kof0.json ù starting with empty memory
+[SESSION_MEMORY] SessionMemory initialized: 0 entities, 0 chunks, 0 concepts loaded from persistence
+[DEPTH_CONTROLLER] Mid confidence (0.65), positive memory (0.50): narrowed top_k=2
+[DEPTH_CONTROLLER] Mid confidence (0.65): using base top_k=3
+[DEPTH_CONTROLLER] Low confidence (0.30 < 0.5), memory=-0.30: widened top_k=6 (step=3, attempt 1)
+[DEPTH_CONTROLLER] Low confidence (0.30 < 0.5), memory=0.00: widened top_k=5 (step=2, attempt 1)
+[CONFIDENCE_ROUTER] Negative memory (-0.30): forced broad routing {'use_fallback': True, 'broaden': True, 'skip_rerank': False}
+[CONFIDENCE_ROUTER] Mid confidence (0.65), memory=0.50: routing {'use_fallback': False, 'broaden': False, 'skip_rerank': False}
+[CONFIDENCE_ROUTER] Mid confidence (0.65), memory=0.00: routing {'use_fallback': True, 'broaden': False, 'skip_rerank': False}
+[MEMORY_STORE] Storage file not found: C:\Users\study\AppData\Local\Temp\test_mem_u5z19jzl.json ù starting with empty memory
+[SESSION_MEMORY] SessionMemory initialized: 0 entities, 0 chunks, 0 concepts loaded from persistence
+[SESSION_MEMORY] Recorded attempt 1: 1 entities, 2 chunks (total unique entities: 1, total unique chunks: 2)
+[SESSION_MEMORY] Outcome: confidence=0.70, verdict=PASS, retried=False \u2192 signal=weak_pos, delta=+0.05
+[MEMORY_STORE] Saved memory: 1 entities, 2 chunks, 0 concepts
+[SESSION_MEMORY] Updated 1 entity scores, 2 chunk scores (persisted)
+[MEMORY_STORE] Storage file not found: C:\Users\study\AppData\Local\Temp\test_mem_d8o54dsl.json ù starting with empty memory
+[SESSION_MEMORY] SessionMemory initialized: 0 entities, 0 chunks, 0 concepts loaded from persistence
+[SESSION_MEMORY] Recorded attempt 1: 1 entities, 1 chunks (total unique entities: 1, total unique chunks: 1)
+[SESSION_MEMORY] Outcome: confidence=0.85, verdict=PASS, retried=False \u2192 signal=strong_pos, delta=+0.15
+[MEMORY_STORE] Saved memory: 1 entities, 1 chunks, 0 concepts
+[SESSION_MEMORY] Updated 1 entity scores, 1 chunk scores (persisted)
+[SESSION_MEMORY] Recorded attempt 2: 1 entities, 1 chunks (total unique entities: 1, total unique chunks: 1)
+[SESSION_MEMORY] Outcome: confidence=0.85, verdict=PASS, retried=False \u2192 signal=strong_pos, delta=+0.15
+[MEMORY_STORE] Saved memory: 1 entities, 1 chunks, 0 concepts
+[SESSION_MEMORY] Updated 1 entity scores, 1 chunk scores (persisted)
+[SESSION_MEMORY] Recorded attempt 3: 1 entities, 1 chunks (total unique entities: 1, total unique chunks: 1)
+[SESSION_MEMORY] Outcome: confidence=0.20, verdict=FAIL, retried=False \u2192 signal=strong_neg, delta=-0.15
+[MEMORY_STORE] Saved memory: 1 entities, 1 chunks, 0 concepts
+[SESSION_MEMORY] Updated 1 entity scores, 1 chunk scores (persisted)
+[MEMORY_STORE] Storage file not found: C:\Users\study\AppData\Local\Temp\test_mem_em1tr47c.json ù starting with empty memory
+[SESSION_MEMORY] SessionMemory initialized: 0 entities, 0 chunks, 0 concepts loaded from persistence
+[SESSION_MEMORY] Recorded attempt 1: 1 entities, 1 chunks (total unique entities: 1, total unique chunks: 1)
+[SESSION_MEMORY] Outcome: confidence=0.85, verdict=PASS, retried=False \u2192 signal=strong_pos, delta=+0.15
+[MEMORY_STORE] Saved memory: 1 entities, 1 chunks, 1 concepts
+[SESSION_MEMORY] Updated 1 entity scores, 1 chunk scores, propagated to 1 concepts: {'vector database': 0.0064285714285714285} (persisted)
+[MEMORY_STORE] Storage file not found: C:\Users\study\AppData\Local\Temp\test_mem_vi0g4pbo.json ù starting with empty memory
+[SESSION_MEMORY] SessionMemory initialized: 0 entities, 0 chunks, 0 concepts loaded from persistence
+[SESSION_MEMORY] Recorded attempt 1: 1 entities, 1 chunks (total unique entities: 1, total unique chunks: 1)
+[SESSION_MEMORY] Outcome: confidence=0.85, verdict=PASS, retried=False \u2192 signal=strong_pos, delta=+0.15
+[MEMORY_STORE] Saved memory: 1 entities, 1 chunks, 1 concepts
+[SESSION_MEMORY] Updated 1 entity scores, 1 chunk scores, propagated to 1 concepts: {'vector database': 0.0064285714285714285} (persisted)
+[SESSION_MEMORY] Entity boosts: 1 entries (0 concept-inferred)
+[MEMORY_STORE] Storage file not found: C:\Users\study\AppData\Local\Temp\test_mem_0dbyzgso.json ù starting with empty memory
+[SESSION_MEMORY] SessionMemory initialized: 0 entities, 0 chunks, 0 concepts loaded from persistence
+[SESSION_MEMORY] Recorded attempt 1: 1 entities, 1 chunks (total unique entities: 1, total unique chunks: 1)
+[SESSION_MEMORY] Outcome: confidence=0.90, verdict=PASS, retried=False \u2192 signal=strong_pos, delta=+0.15
+[MEMORY_STORE] Saved memory: 1 entities, 1 chunks, 1 concepts
+[SESSION_MEMORY] Updated 1 entity scores, 1 chunk scores, propagated to 1 concepts: {'vector database': 0.0064285714285714285} (persisted)
+[SESSION_MEMORY] Recorded attempt 2: 1 entities, 1 chunks (total unique entities: 1, total unique chunks: 1)
+[SESSION_MEMORY] Outcome: confidence=0.90, verdict=PASS, retried=False \u2192 signal=strong_pos, delta=+0.15
+[MEMORY_STORE] Saved memory: 1 entities, 1 chunks, 1 concepts
+[SESSION_MEMORY] Updated 1 entity scores, 1 chunk scores, propagated to 1 concepts: {'vector database': 0.012857142857142857} (persisted)
+[SESSION_MEMORY] Recorded attempt 3: 1 entities, 1 chunks (total unique entities: 1, total unique chunks: 1)
+[SESSION_MEMORY] Outcome: confidence=0.90, verdict=PASS, retried=False \u2192 signal=strong_pos, delta=+0.15
+[MEMORY_STORE] Saved memory: 1 entities, 1 chunks, 1 concepts
+[SESSION_MEMORY] Updated 1 entity scores, 1 chunk scores, propagated to 1 concepts: {'vector database': 0.019285714285714285} (persisted)
+[SESSION_MEMORY] Recorded attempt 4: 1 entities, 1 chunks (total unique entities: 1, total unique chunks: 1)
+[SESSION_MEMORY] Outcome: confidence=0.90, verdict=PASS, retried=False \u2192 signal=strong_pos, delta=+0.15
+[MEMORY_STORE] Saved memory: 1 entities, 1 chunks, 1 concepts
+[SESSION_MEMORY] Updated 1 entity scores, 1 chunk scores, propagated to 1 concepts: {'vector database': 0.025714285714285714} (persisted)
+[SESSION_MEMORY] Recorded attempt 5: 1 entities, 1 chunks (total unique entities: 1, total unique chunks: 1)
+[SESSION_MEMORY] Outcome: confidence=0.90, verdict=PASS, retried=False \u2192 signal=strong_pos, delta=+0.15
+[CONCEPT_DISCOVERY] No qualifying pairs for concept discovery
+[MEMORY_STORE] Saved memory: 1 entities, 1 chunks, 1 concepts
+[SESSION_MEMORY] Updated 1 entity scores, 1 chunk scores, propagated to 1 concepts: {'vector database': 0.03214285714285714} (persisted)
+[SESSION_MEMORY] Recorded attempt 6: 1 entities, 1 chunks (total unique entities: 1, total unique chunks: 1)
+[SESSION_MEMORY] Outcome: confidence=0.90, verdict=PASS, retried=False \u2192 signal=strong_pos, delta=+0.15
+[MEMORY_STORE] Saved memory: 1 entities, 1 chunks, 1 concepts
+[SESSION_MEMORY] Updated 1 entity scores, 1 chunk scores, propagated to 1 concepts: {'vector database': 0.03857142857142857} (persisted)
+[SESSION_MEMORY] Recorded attempt 7: 1 entities, 1 chunks (total unique entities: 1, total unique chunks: 1)
+[SESSION_MEMORY] Outcome: confidence=0.90, verdict=PASS, retried=False \u2192 signal=strong_pos, delta=+0.15
+[MEMORY_STORE] Saved memory: 1 entities, 1 chunks, 1 concepts
+[SESSION_MEMORY] Updated 1 entity scores, 1 chunk scores, propagated to 1 concepts: {'vector database': 0.045} (persisted)
+[SESSION_MEMORY] Recorded attempt 8: 1 entities, 1 chunks (total unique entities: 1, total unique chunks: 1)
+[SESSION_MEMORY] Outcome: confidence=0.90, verdict=PASS, retried=False \u2192 signal=strong_pos, delta=+0.15
+[MEMORY_STORE] Saved memory: 1 entities, 1 chunks, 1 concepts
+[SESSION_MEMORY] Updated 1 entity scores, 1 chunk scores, propagated to 1 concepts: {'vector database': 0.05142857142857143} (persisted)
+[SESSION_MEMORY] Recorded attempt 9: 1 entities, 1 chunks (total unique entities: 1, total unique chunks: 1)
+[SESSION_MEMORY] Outcome: confidence=0.90, verdict=PASS, retried=False \u2192 signal=strong_pos, delta=+0.15
+[MEMORY_STORE] Saved memory: 1 entities, 1 chunks, 1 concepts
+[SESSION_MEMORY] Updated 1 entity scores, 1 chunk scores, propagated to 1 concepts: {'vector database': 0.05785714285714286} (persisted)
+[SESSION_MEMORY] Recorded attempt 10: 1 entities, 1 chunks (total unique entities: 1, total unique chunks: 1)
+[SESSION_MEMORY] Outcome: confidence=0.90, verdict=PASS, retried=False \u2192 signal=strong_pos, delta=+0.15
+[CONCEPT_DISCOVERY] No qualifying pairs for concept discovery
+[MEMORY_STORE] Saved memory: 1 entities, 1 chunks, 1 concepts
+[SESSION_MEMORY] Updated 1 entity scores, 1 chunk scores, propagated to 1 concepts: {'vector database': 0.06428571428571428} (persisted)
+[SESSION_MEMORY] Recorded attempt 11: 1 entities, 1 chunks (total unique entities: 1, total unique chunks: 1)
+[SESSION_MEMORY] Outcome: confidence=0.90, verdict=PASS, retried=False \u2192 signal=strong_pos, delta=+0.15
+[MEMORY_STORE] Saved memory: 1 entities, 1 chunks, 1 concepts
+[SESSION_MEMORY] Updated 1 entity scores, 1 chunk scores, propagated to 1 concepts: {'vector database': 0.0707142857142857} (persisted)
+[SESSION_MEMORY] Recorded attempt 12: 1 entities, 1 chunks (total unique entities: 1, total unique chunks: 1)
+[SESSION_MEMORY] Outcome: confidence=0.90, verdict=PASS, retried=False \u2192 signal=strong_pos, delta=+0.15
+[MEMORY_STORE] Saved memory: 1 entities, 1 chunks, 1 concepts
+[SESSION_MEMORY] Updated 1 entity scores, 1 chunk scores, propagated to 1 concepts: {'vector database': 0.07714285714285712} (persisted)
+[SESSION_MEMORY] Recorded attempt 13: 1 entities, 1 chunks (total unique entities: 1, total unique chunks: 1)
+[SESSION_MEMORY] Outcome: confidence=0.90, verdict=PASS, retried=False \u2192 signal=strong_pos, delta=+0.15
+[MEMORY_STORE] Saved memory: 1 entities, 1 chunks, 1 concepts
+[SESSION_MEMORY] Updated 1 entity scores, 1 chunk scores, propagated to 1 concepts: {'vector database': 0.08357142857142855} (persisted)
+[SESSION_MEMORY] Recorded attempt 14: 1 entities, 1 chunks (total unique entities: 1, total unique chunks: 1)
+[SESSION_MEMORY] Outcome: confidence=0.90, verdict=PASS, retried=False \u2192 signal=strong_pos, delta=+0.15
+[MEMORY_STORE] Saved memory: 1 entities, 1 chunks, 1 concepts
+[SESSION_MEMORY] Updated 1 entity scores, 1 chunk scores, propagated to 1 concepts: {'vector database': 0.08999999999999997} (persisted)
+[SESSION_MEMORY] Recorded attempt 15: 1 entities, 1 chunks (total unique entities: 1, total unique chunks: 1)
+[SESSION_MEMORY] Outcome: confidence=0.90, verdict=PASS, retried=False \u2192 signal=strong_pos, delta=+0.15
+[CONCEPT_DISCOVERY] No qualifying pairs for concept discovery
+[MEMORY_STORE] Saved memory: 1 entities, 1 chunks, 1 concepts
+[SESSION_MEMORY] Updated 1 entity scores, 1 chunk scores, propagated to 1 concepts: {'vector database': 0.09642857142857139} (persisted)
+[SESSION_MEMORY] Recorded attempt 16: 1 entities, 1 chunks (total unique entities: 1, total unique chunks: 1)
+[SESSION_MEMORY] Outcome: confidence=0.90, verdict=PASS, retried=False \u2192 signal=strong_pos, delta=+0.15
+[MEMORY_STORE] Saved memory: 1 entities, 1 chunks, 1 concepts
+[SESSION_MEMORY] Updated 1 entity scores, 1 chunk scores, propagated to 1 concepts: {'vector database': 0.10285714285714281} (persisted)
+[SESSION_MEMORY] Recorded attempt 17: 1 entities, 1 chunks (total unique entities: 1, total unique chunks: 1)
+[SESSION_MEMORY] Outcome: confidence=0.90, verdict=PASS, retried=False \u2192 signal=strong_pos, delta=+0.15
+[MEMORY_STORE] Saved memory: 1 entities, 1 chunks, 1 concepts
+[SESSION_MEMORY] Updated 1 entity scores, 1 chunk scores, propagated to 1 concepts: {'vector database': 0.10928571428571424} (persisted)
+[SESSION_MEMORY] Recorded attempt 18: 1 entities, 1 chunks (total unique entities: 1, total unique chunks: 1)
+[SESSION_MEMORY] Outcome: confidence=0.90, verdict=PASS, retried=False \u2192 signal=strong_pos, delta=+0.15
+[MEMORY_STORE] Saved memory: 1 entities, 1 chunks, 1 concepts
+[SESSION_MEMORY] Updated 1 entity scores, 1 chunk scores, propagated to 1 concepts: {'vector database': 0.11571428571428566} (persisted)
+[SESSION_MEMORY] Recorded attempt 19: 1 entities, 1 chunks (total unique entities: 1, total unique chunks: 1)
+[SESSION_MEMORY] Outcome: confidence=0.90, verdict=PASS, retried=False \u2192 signal=strong_pos, delta=+0.15
+[MEMORY_STORE] Saved memory: 1 entities, 1 chunks, 1 concepts
+[SESSION_MEMORY] Updated 1 entity scores, 1 chunk scores, propagated to 1 concepts: {'vector database': 0.12214285714285708} (persisted)
+[SESSION_MEMORY] Recorded attempt 20: 1 entities, 1 chunks (total unique entities: 1, total unique chunks: 1)
+[SESSION_MEMORY] Outcome: confidence=0.90, verdict=PASS, retried=False \u2192 signal=strong_pos, delta=+0.15
+[CONCEPT_DISCOVERY] No qualifying pairs for concept discovery
+[MEMORY_STORE] Saved memory: 1 entities, 1 chunks, 1 concepts
+[SESSION_MEMORY] Updated 1 entity scores, 1 chunk scores, propagated to 1 concepts: {'vector database': 0.1285714285714285} (persisted)
+[MEMORY_STORE] Storage file not found: C:\Users\study\AppData\Local\Temp\test_mem_tak5k3po.json ù starting with empty memory
+[SESSION_MEMORY] SessionMemory initialized: 0 entities, 0 chunks, 0 concepts loaded from persistence
+[SESSION_MEMORY] Recorded attempt 1: 1 entities, 1 chunks (total unique entities: 1, total unique chunks: 1)
+[SESSION_MEMORY] Outcome: confidence=0.85, verdict=PASS, retried=False \u2192 signal=strong_pos, delta=+0.15
+[MEMORY_STORE] Saved memory: 1 entities, 1 chunks, 1 concepts
+[SESSION_MEMORY] Updated 1 entity scores, 1 chunk scores, propagated to 1 concepts: {'vector database': 0.0064285714285714285} (persisted)
+[SESSION_MEMORY] Recorded attempt 2: 1 entities, 1 chunks (total unique entities: 2, total unique chunks: 2)
+[SESSION_MEMORY] Outcome: confidence=0.20, verdict=FAIL, retried=False \u2192 signal=strong_neg, delta=-0.15
+[MEMORY_STORE] Saved memory: 2 entities, 2 chunks, 1 concepts
+[SESSION_MEMORY] Updated 1 entity scores, 1 chunk scores, propagated to 1 concepts: {'vector database': 0.0} (1 entities decayed, 1 chunks decayed) (persisted)
+[SESSION_MEMORY] Entity boosts: 2 entries (0 concept-inferred)
+[MEMORY_STORE] Storage file not found: C:\Users\study\AppData\Local\Temp\test_mem_0iunib3o.json ù starting with empty memory
+[SESSION_MEMORY] SessionMemory initialized: 0 entities, 0 chunks, 0 concepts loaded from persistence
+[SESSION_MEMORY] Recorded attempt 1: 1 entities, 1 chunks (total unique entities: 1, total unique chunks: 1)
+[SESSION_MEMORY] Outcome: confidence=0.85, verdict=PASS, retried=False \u2192 signal=strong_pos, delta=+0.15
+[MEMORY_STORE] Saved memory: 1 entities, 1 chunks, 1 concepts
+[SESSION_MEMORY] Updated 1 entity scores, 1 chunk scores, propagated to 1 concepts: {'vector database': 0.0064285714285714285} (persisted)
+[SESSION_MEMORY] Concept scores: {'vector database': 0.0064}
+[CONCEPT_DISCOVERY] Recorded 3 co-occurrence pairs from 3 entities (total tracked: 3)
+[CONCEPT_DISCOVERY] Recorded 1 co-occurrence pairs from 2 entities (total tracked: 1)
+[CONCEPT_DISCOVERY] Recorded 1 co-occurrence pairs from 2 entities (total tracked: 1)
+[CONCEPT_DISCOVERY] Recorded 1 co-occurrence pairs from 2 entities (total tracked: 1)
+[CONCEPT_DISCOVERY] Updated success count for 1 pairs
+[CONCEPT_DISCOVERY] Updated success count for 1 pairs
+[CONCEPT_DISCOVERY] Recorded 3 co-occurrence pairs from 3 entities (total tracked: 3)
+[CONCEPT_DISCOVERY] Updated success count for 3 pairs
+[CONCEPT_DISCOVERY] Recorded 3 co-occurrence pairs from 3 entities (total tracked: 3)
+[CONCEPT_DISCOVERY] Updated success count for 3 pairs
+[CONCEPT_DISCOVERY] Recorded 3 co-occurrence pairs from 3 entities (total tracked: 3)
+[CONCEPT_DISCOVERY] Updated success count for 3 pairs
+[CONCEPT_DISCOVERY] Recorded 3 co-occurrence pairs from 3 entities (total tracked: 3)
+[CONCEPT_DISCOVERY] Updated success count for 3 pairs
+[CONCEPT_DISCOVERY] Concept discovery: 3 qualifying pairs from 3 total
+[CONCEPT_LABELER] Labeled cluster ['docker', 'helm', 'kubernetes'] \u2192 'container orchestration' (confidence=1.0, matched=3/3)
+[CONCEPT_DISCOVERY] Discovered 1 concepts from 1 clusters (0 filtered by overlap)
+[CONCEPT_DISCOVERY] Recorded 3 co-occurrence pairs from 3 entities (total tracked: 3)
+[CONCEPT_DISCOVERY] Updated success count for 3 pairs
+[CONCEPT_DISCOVERY] Recorded 3 co-occurrence pairs from 3 entities (total tracked: 3)
+[CONCEPT_DISCOVERY] Updated success count for 3 pairs
+[CONCEPT_DISCOVERY] Recorded 3 co-occurrence pairs from 3 entities (total tracked: 3)
+[CONCEPT_DISCOVERY] Updated success count for 3 pairs
+[CONCEPT_DISCOVERY] Recorded 3 co-occurrence pairs from 3 entities (total tracked: 3)
+[CONCEPT_DISCOVERY] Updated success count for 3 pairs
+[CONCEPT_DISCOVERY] Concept discovery: 3 qualifying pairs from 3 total
+[CONCEPT_DISCOVERY] Discovered 0 concepts from 1 clusters (1 filtered by overlap)
+[CONCEPT_DISCOVERY] Recorded 1 co-occurrence pairs from 2 entities (total tracked: 1)
+[CONCEPT_DISCOVERY] Updated success count for 1 pairs
+[CONCEPT_DISCOVERY] Recorded 1 co-occurrence pairs from 2 entities (total tracked: 1)
+[CONCEPT_DISCOVERY] Updated success count for 1 pairs
+[CONCEPT_DISCOVERY] Recorded 1 co-occurrence pairs from 2 entities (total tracked: 1)
+[CONCEPT_DISCOVERY] Updated success count for 1 pairs
+[CONCEPT_DISCOVERY] Recorded 1 co-occurrence pairs from 2 entities (total tracked: 1)
+[CONCEPT_DISCOVERY] Updated success count for 1 pairs
+[CONCEPT_DISCOVERY] Concept discovery: 1 qualifying pairs from 1 total
+[CONCEPT_LABELER] No semantic match for ['alpha', 'beta'] (best: 'None' at 0.000) \u2192 fallback: learned:alpha+beta
+[CONCEPT_DISCOVERY] Discovered 1 concepts from 1 clusters (0 filtered by overlap)
+[CONCEPT_DISCOVERY] Loaded discovery state: 1 pairs, 1 learned concepts
+[CONCEPT_LABELER] Labeled cluster ['docker', 'kubernetes', 'helm'] \u2192 'container orchestration' (confidence=1.0, matched=3/3)
+[CONCEPT_LABELER] No semantic match for ['xyzzy', 'plugh', 'zorkmid'] (best: 'None' at 0.000) \u2192 fallback: learned:plugh+xyzzy+zorkmid
+[CONCEPT_LABELER] No semantic match for ['docker', 'xyzzy', 'plugh', 'zorkmid', 'quux'] (best: 'None' at 0.000) \u2192 fallback: learned:docker+plugh+quux+xyzzy+zorkmid
+[MEMORY_STORE] Storage file not found: C:\Users\study\AppData\Local\Temp\test_mem_gi6_gt8y.json ù starting with empty memory
+[SESSION_MEMORY] SessionMemory initialized: 0 entities, 0 chunks, 0 concepts loaded from persistence
+[SESSION_MEMORY] Recorded attempt 1: 1 entities, 1 chunks (total unique entities: 1, total unique chunks: 1)
+[SESSION_MEMORY] Outcome: confidence=0.85, verdict=PASS, retried=False \u2192 signal=strong_pos, delta=+0.15
+[SESSION_MEMORY] Applied hallucination penalty -0.0500 to 1 entities, 1 chunks
+[MEMORY_STORE] Saved memory: 1 entities, 1 chunks, 1 concepts
+[SESSION_MEMORY] Updated 1 entity scores, 1 chunk scores, propagated to 1 concepts: {'vector database': 0.0064285714285714285}, hallucination_penalty=-0.0500 (persisted)
+[MEMORY_STORE] Storage file not found: C:\Users\study\AppData\Local\Temp\test_mem_fi7p5570.json ù starting with empty memory
+[SESSION_MEMORY] SessionMemory initialized: 0 entities, 0 chunks, 0 concepts loaded from persistence
+[SESSION_MEMORY] Recorded attempt 1: 2 entities, 2 chunks (total unique entities: 2, total unique chunks: 2)
+[CONCEPT_DISCOVERY] Recorded 1 co-occurrence pairs from 2 entities (total tracked: 1)
+[SESSION_MEMORY] Outcome: confidence=0.30, verdict=PARTIAL, retried=False \u2192 signal=weak_neg, delta=-0.05
+[CONCEPT_DISCOVERY] Recorded 6 co-occurrence pairs from 4 entities (total tracked: 6)
+[CONCEPT_DISCOVERY] Updated success count for 6 pairs
+[SESSION_MEMORY] Boosted discovery with 2 missing terms: ['weaviate', 'milvus']
+[MEMORY_STORE] Saved memory: 2 entities, 2 chunks, 1 concepts
+[SESSION_MEMORY] Updated 2 entity scores, 2 chunk scores, propagated to 1 concepts: {'vector database': -0.004285714285714286}, discovery_boost=2 terms (persisted)
+[MEMORY_STORE] Storage file not found: C:\Users\study\AppData\Local\Temp\test_mem_hu9rsjwe.json ù starting with empty memory
+[SESSION_MEMORY] SessionMemory initialized: 0 entities, 0 chunks, 0 concepts loaded from persistence
+[SESSION_MEMORY] Recorded attempt 1: 1 entities, 1 chunks (total unique entities: 1, total unique chunks: 1)
+[SESSION_MEMORY] Outcome: confidence=0.85, verdict=PASS, retried=False \u2192 signal=strong_pos, delta=+0.15
+[MEMORY_STORE] Saved memory: 1 entities, 1 chunks, 1 concepts
+[SESSION_MEMORY] Updated 1 entity scores, 1 chunk scores, propagated to 1 concepts: {'vector database': 0.0064285714285714285} (persisted)
+[SESSION_MEMORY] Recorded attempt 2: 1 entities, 1 chunks (total unique entities: 1, total unique chunks: 2)
+[SESSION_MEMORY] Outcome: confidence=0.20, verdict=FAIL, retried=False \u2192 signal=strong_neg, delta=-0.15
+[SESSION_MEMORY] Applied concept penalty -0.0500 to 1 concepts
+[MEMORY_STORE] Saved memory: 1 entities, 2 chunks, 1 concepts
+[SESSION_MEMORY] Updated 1 entity scores, 1 chunk scores, propagated to 1 concepts: {'vector database': -0.05} (1 chunks decayed), concept_penalty=-0.0500 (persisted)
+[CRITIC_FEEDBACK] Hallucination penalty: -0.0600 (risk=0.60)
+[CRITIC_FEEDBACK] Coverage boost: 0.0800 (coverage=0.20, missing=['weaviate', 'milvus'])
+[CRITIC_FEEDBACK] Concept fail penalty: -0.05 (verdict=FAIL)
+[STRATEGY_TRACKER] Recorded strategy use: rewrite = 'intent-rephrase'
+[STRATEGY_TRACKER] Recorded strategy use: depth = 'k=3'
+[STRATEGY_TRACKER] Updated strategy scores from outcome: rewrite:'intent-rephrase' (0.50\u21920.38), depth:'k=3' (0.50\u21920.38)
+[STRATEGY_TRACKER] Recorded strategy use: rewrite = 'intent-rephrase'
+[STRATEGY_TRACKER] Updated strategy scores from outcome: rewrite:'intent-rephrase' (0.38\u21920.54)
+[STRATEGY_TRACKER] Selected best rewrite strategy: 'stratA' (score=0.80)
+[STRATEGY_TRACKER] Selected best routing strategy: 'config2' (score=0.60)
+[MEMORY_STORE] Storage file not found: C:\Users\study\AppData\Local\Temp\test_mem_1p60thh1.json ù starting with empty memory
+[SESSION_MEMORY] SessionMemory initialized: 0 entities, 0 chunks, 0 concepts loaded from persistence
+[STRATEGY_TRACKER] Recorded strategy use: depth = 'k=5'
+[SESSION_MEMORY] Recorded attempt 1: 1 entities, 1 chunks (total unique entities: 1, total unique chunks: 1)
+[SESSION_MEMORY] Outcome: confidence=0.80, verdict=PASS, retried=False \u2192 signal=strong_pos, delta=+0.15
+[STRATEGY_TRACKER] Updated strategy scores from outcome: depth:'k=5' (0.50\u21920.59)
+[MEMORY_STORE] Saved memory: 1 entities, 1 chunks, 1 concepts
+[SESSION_MEMORY] Updated 1 entity scores, 1 chunk scores, propagated to 1 concepts: {'vector database': 0.0064285714285714285} (persisted)
+[MEMORY_STORE] Saved memory: 1 entities, 1 chunks, 1 concepts
+[MEMORY_STORE] Loaded memory: 1 entities, 1 chunks, 0 concepts
+[SESSION_MEMORY] SessionMemory initialized: 1 entities, 1 chunks, 0 concepts loaded from persistence
+
+============================================================
+Performance-Aware Session Memory ù Unit Tests
+============================================================
+
+  [PASS] test_compute_delta_signals
+  [PASS] test_positive_outcome_boosts
+  [PASS] test_negative_outcome_penalizes
+  [PASS] test_score_clamping
+  [PASS] test_entity_boosts_performance_weighted
+  [PASS] test_chunk_scores
+  [PASS] test_memory_quality
+  [PASS] test_depth_controller_memory_influence
+  [PASS] test_confidence_router_memory_influence
+  [PASS] test_novelty_detection
+  [PASS] test_mixed_outcomes_accumulate
+  [PASS] test_concept_taxonomy_lookup
+  [PASS] test_concept_propagation_damped
+  [PASS] test_sibling_inference
+  [PASS] test_anti_overgeneralization
+  [PASS] test_direct_score_overrides_concept
+  [PASS] test_concept_scores_method
+  [PASS] test_cooccurrence_tracking
+  [PASS] test_cooccurrence_success_rate
+  [PASS] test_discovery_triggers_on_evidence
+  [PASS] test_overlap_filter
+  [PASS] test_discovery_serialization
+  [PASS] test_labeler_known_cluster
+  [PASS] test_labeler_unknown_cluster
+  [PASS] test_labeler_partial_match
+  [PASS] test_hallucination_penalty_reduces_score
+  [PASS] test_missing_coverage_boosts_discovery
+  [PASS] test_concept_penalty_on_fail
+  [PASS] test_extract_signals_from_critic
+  [PASS] test_strategy_ema_scoring
+  [PASS] test_strategy_best_selection
+  [PASS] test_strategy_auto_disable
+  [FAIL] test_strategy_tracker_integration_with_memory: 
+
+============================================================
+RESULTS: 32/33 passed, 1/33 failed
+============================================================
+

@@ -1,0 +1,16 @@
+# Mode Controller — Task Tracker
+
+## Planning
+- [x] Research blueprint §2.3
+- [ ] Write implementation plan
+- [ ] User approval
+
+## Implementation
+- [ ] Create `orchestrator/__init__.py`
+- [ ] Create `orchestrator/schemas.py` — `ExecutionMode` Enum (LIGHT, HEAVY)
+- [ ] Create `orchestrator/mode_controller.py` — `ModeController` with `select_mode(intent, ambiguity_detected)` and `should_escalate(light_confidence)`
+- [ ] Update [pyproject.toml](file:///c:/HelioX/pyproject.toml) to include `orchestrator*`
+
+## Verification
+- [ ] Create `tests/test_mode_controller.py` — verify intent-based routing and confidence escalation
+- [ ] Run tests and verify all pass

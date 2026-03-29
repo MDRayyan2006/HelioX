@@ -1,0 +1,6 @@
+2026/03/09-23:54:57.243 3ca8 Creating DB C:\Users\study\.gemini\antigravity-browser-profile\Default\WebStorage\4\IndexedDB\indexeddb.leveldb since it was missing.
+2026/03/09-23:54:57.252 3ca8 Reusing MANIFEST C:\Users\study\.gemini\antigravity-browser-profile\Default\WebStorage\4\IndexedDB\indexeddb.leveldb/MANIFEST-000001
+2026/03/09-23:54:59.680 860c Level-0 table #5: started
+2026/03/09-23:54:59.684 860c Level-0 table #5: 868 bytes OK
+2026/03/09-23:54:59.685 860c Delete type=0 #3
+2026/03/09-23:54:59.686 860c Manual compaction at level-0 from (begin) .. (end); will stop at (end)

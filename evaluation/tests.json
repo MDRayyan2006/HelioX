@@ -1,0 +1,29 @@
+[
+  {
+    "name": "Vector Search Query",
+    "query": "How does HelioX perform vector search using Qdrant?",
+    "expected": {
+      "min_results": 3,
+      "keywords": ["vector", "search", "qdrant"],
+      "entities": ["HelioX", "Qdrant"]
+    }
+  },
+  {
+    "name": "Sparse Retrieval Query",
+    "query": "What is BM25 sparse retrieval optimization?",
+    "expected": {
+      "min_results": 3,
+      "keywords": ["bm25", "sparse", "retrieval", "optimization"],
+      "entities": ["BM25"]
+    }
+  },
+  {
+    "name": "Embedding Model Query",
+    "query": "Which embedding model does HelioX use?",
+    "expected": {
+      "min_results": 3,
+      "keywords": ["embedding", "model"],
+      "entities": ["MiniLM", "HelioX"]
+    }
+  }
+]

@@ -1,0 +1,5 @@
+- [x] Update [ingestion/config.py](file:///c:/HelioX/ingestion/config.py), [query_pipeline/config.py](file:///c:/HelioX/query_pipeline/config.py), and [.env](file:///c:/HelioX/.env) with `mistral_api_key_principal`.
+- [x] Refactor [composer/generator.py](file:///c:/HelioX/composer/generator.py) to use Mistral API and await the result.
+- [x] Refactor [adjudication/engine.py](file:///c:/HelioX/adjudication/engine.py) to use Mistral API as a tiebreaker for unresolved conflicts.
+- [ ] Update [run_pipeline.py](file:///C:/HelioX/run_pipeline.py) to await the new asynchronous composer operations.
+- [ ] Test the pipeline execution.

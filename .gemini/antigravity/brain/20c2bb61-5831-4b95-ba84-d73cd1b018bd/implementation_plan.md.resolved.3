@@ -1,0 +1,95 @@
+# Adjudication Engine — Implementation Plan
+
+Build **Layer 10 — Adjudication Engine** per §2.10. Resolves contradictions from the synthesis layer using authority weighting, agreement scoring, and a re-verification loop.
+
+## Proposed Changes
+
+### Schemas
+
+#### [NEW] [schemas.py](file:///c:/HelioX/adjudication/schemas.py)
+
+| Model | Purpose |
+|-------|---------|
+| `ResolutionStatus` | Enum: `RESOLVED`, `UNRESOLVED` |
+| `ConflictResolution` | Resolution of one conflict: winner claim, loser, resolution method, rounds |
+| `AuthorityScore` | Breakdown: recency, source_rank, citation_density, worker_confidence, cosine_similarity, coverage, weighted_total |
+| `ConflictLogEntry` | Full log per conflict: both claims, scores, resolution, round details |
+| `AdjudicationResult` | Final output: selected evidence set, conflict log, updated confidence |
+
+---
+
+### Semantic Contradiction Detection
+
+#### [NEW] [contradiction.py](file:///c:/HelioX/adjudication/contradiction.py)
+
+- Pairwise entailment scoring via token overlap + negation analysis
+- Threshold: score ≤ 0.30 → confirmed contradiction
+- Returns `is_contradiction` bool + entailment score per conflict pair
+
+---
+
+### Authority Weighting
+
+#### [NEW] [authority.py](file:///c:/HelioX/adjudication/authority.py)
+
+Weighted formula per claim:
+```
+weighted = (w1 × recency) + (w2 × source_rank) + (w3 × citation_density)
+         + (w4 × worker_confidence) + (w5 × cosine_similarity) + (w6 × coverage_score)
+```
+Default weights: `w1=0.15, w2=0.20, w3=0.15, w4=0.20, w5=0.15, w6=0.15`
+
+---
+
+### Cross-Worker Agreement
+
+#### [NEW] [consensus.py](file:///c:/HelioX/adjudication/consensus.py)
+
+- Agreement score = `# workers supporting claim / total workers`
+- Support detection: keyword overlap between claim and worker outputs
+
+---
+
+### Engine Orchestrator
+
+#### [NEW] [engine.py](file:///c:/HelioX/adjudication/engine.py)
+
+`AdjudicationEngine.adjudicate(synthesis_result, merged_claims, ...)`:
+
+1. For each [ConflictCandidate](file:///c:/HelioX/synthesis/schemas.py#43-53):
+   a. Run semantic contradiction detection
+   b. Compute authority scores for both claims
+   c. Compute agreement scores
+   d. **Re-verification loop** (max 2 rounds): re-score if unresolved
+   e. Apply resolution policy: winner = highest combined score; if still unresolved, reduce confidence
+2. Build final selected evidence set (non-conflicting + winners)
+3. Return `AdjudicationResult`
+
+---
+
+### Package
+
+#### [NEW] [\_\_init\_\_.py](file:///c:/HelioX/adjudication/__init__.py)
+
+#### [MODIFY] [pyproject.toml](file:///c:/HelioX/pyproject.toml)
+
+Add `"adjudication*"`.
+
+---
+
+## Verification Plan
+
+#### [NEW] [test_adjudication.py](file:///c:/HelioX/tests/test_adjudication.py)
+
+| Test | Verifies |
+|------|----------|
+| `test_contradiction_confirmed` | Score ≤ 0.30 → contradiction |
+| `test_contradiction_not_confirmed` | Score > 0.30 → no contradiction |
+| `test_authority_weighting` | Correct weighted formula calculation |
+| `test_agreement_scoring` | Correct worker support ratio |
+| `test_resolution_resolved` | Winner selected by higher authority+agreement |
+| `test_resolution_unresolved` | Confidence reduced when unresolved |
+| `test_reverification_rounds` | Max 2 rounds enforced |
+| `test_no_conflicts` | Clean pass-through with no conflicts |
+| `test_end_to_end` | Full pipeline produces valid AdjudicationResult |
+| `test_multiple_conflicts` | Multiple conflicts resolved independently |

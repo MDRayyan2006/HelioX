@@ -1,0 +1,8 @@
+# Configuring Models for Pipeline Stages
+
+- [x] Update [profiling/summary_generator.py](file:///c:/HelioX/profiling/summary_generator.py) to use Groq (`llama-3.1-8b-instant`) with the provided profiling API key.
+- [x] Update [profiling/entity_extractor.py](file:///c:/HelioX/profiling/entity_extractor.py) to use Groq (`llama-3.1-8b-instant`) with the provided profiling API key.
+- [x] Update [adjudication/engine.py](file:///c:/HelioX/adjudication/engine.py) to conditionally use Groq (`llama-3.3-70b-versatile`) if `mode == HEAVY`, else Mistral.
+- [/] Update [composer/generator.py](file:///c:/HelioX/composer/generator.py) to conditionally use Groq (`llama-3.3-70b-versatile`) if `mode == HEAVY`, else Mistral.
+- [ ] Update [orchestrator/orchestrator.py](file:///c:/HelioX/orchestrator/orchestrator.py) and [run_pipeline.py](file:///c:/HelioX/run_pipeline.py) to actively pass the execution `mode` into the Adjudicator and Composer.
+- [ ] Test [run_pipeline.py](file:///c:/HelioX/run_pipeline.py) to ensure all execution environments pass.

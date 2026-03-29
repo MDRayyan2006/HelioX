@@ -1,0 +1,16 @@
+# Mode Controller — Task Tracker
+
+## Planning
+- [x] Research blueprint §2.3
+- [x] Write implementation plan
+- [x] User approval
+
+## Implementation
+- [x] Create [orchestrator/__init__.py](file:///c:/HelioX/orchestrator/__init__.py)
+- [x] Create [orchestrator/schemas.py](file:///c:/HelioX/orchestrator/schemas.py) — [ExecutionMode](file:///c:/HelioX/orchestrator/schemas.py#10-15) Enum (LIGHT, HEAVY)
+- [x] Create [orchestrator/mode_controller.py](file:///c:/HelioX/orchestrator/mode_controller.py) — [ModeController](file:///c:/HelioX/orchestrator/mode_controller.py#17-82) with `select_mode` and [should_escalate](file:///c:/HelioX/orchestrator/mode_controller.py#59-82)
+- [x] Update [pyproject.toml](file:///c:/HelioX/pyproject.toml) to include `orchestrator*`
+
+## Verification
+- [x] Create [tests/test_mode_controller.py](file:///c:/HelioX/tests/test_mode_controller.py) — verify intent-based routing and confidence escalation
+- [x] Run tests and verify all pass ✓

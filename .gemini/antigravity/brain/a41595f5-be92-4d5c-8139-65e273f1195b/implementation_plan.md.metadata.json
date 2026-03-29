@@ -1,0 +1,6 @@
+{
+  "artifactType":  "ARTIFACT_TYPE_IMPLEMENTATION_PLAN",
+  "summary":  "Implementation plan for the Hybrid Retrieval Engine. Covers a 4-stage retrieval cascade (metadata filtering, entity matching, vector search, fallback), relevance scoring with 6 weighted signals, adaptive dynamic K, query coverage scoring, and confidence estimation.",
+  "updatedAt":  "2026-03-05T16:52:24.583772800Z",
+  "version":  "2"
+}

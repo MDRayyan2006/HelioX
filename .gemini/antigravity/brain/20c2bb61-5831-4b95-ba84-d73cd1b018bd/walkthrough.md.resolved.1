@@ -1,0 +1,78 @@
+# Worker Agent Service — Walkthrough
+
+## What Was Built
+
+**Layer 8 — Parallel Worker Agent Layer** for HelioX RAG 3.0, per architecture blueprint §2.8. Each worker processes a single chunk against the locked SQO, extracting citation-bound claims.
+
+## Architecture
+
+```mermaid
+graph TD
+    SQO["Locked SQO"] --> POOL["WorkerPool"]
+    RET["Retrieved Chunks (K)"] --> POOL
+    POOL --> W1["Worker 1"]
+    POOL --> W2["Worker 2"]
+    POOL --> WK["Worker K"]
+    W1 --> |"LLM Call"| O1["WorkerOutput"]
+    W2 --> |"LLM Call"| O2["WorkerOutput"]
+    WK --> |"LLM Call"| OK["WorkerOutput"]
+    O1 --> AGG["Aggregation"]
+    O2 --> AGG
+    OK --> AGG
+    AGG --> CHECK{"avg confidence ≥ 0.90?"}
+    CHECK -->|"Yes"| STOP["Early Stop + Cancel"]
+    CHECK -->|"No"| WAIT["Wait for more"]
+    STOP --> RESULT["PoolResult"]
+    WAIT --> RESULT
+```
+
+## Files Created
+
+| File | Purpose |
+|------|---------|
+| [schemas.py](file:///c:/HelioX/workers/schemas.py) | [WorkerOutput](file:///c:/HelioX/workers/schemas.py#82-101) (claim, spans, trace, confidence, coverage, status), [PoolResult](file:///c:/HelioX/workers/schemas.py#108-129), [TokenUsage](file:///c:/HelioX/workers/schemas.py#46-52) |
+| [prompts.py](file:///c:/HelioX/workers/prompts.py) | Citation-only system prompt + user prompt with SQO injection |
+| [worker.py](file:///c:/HelioX/workers/worker.py) | [ChunkWorker](file:///c:/HelioX/workers/worker.py#26-289) — LLM call, JSON parse, span validation, coverage scoring |
+| [pool.py](file:///c:/HelioX/workers/pool.py) | [WorkerPool](file:///c:/HelioX/workers/pool.py#33-282) — parallel dispatch, early stop, retry, timeout, budget |
+| [\_\_init\_\_.py](file:///c:/HelioX/workers/__init__.py) | Package exports |
+
+## Worker Output Schema (§2.8)
+
+```json
+{
+  "worker_id": "uuid",
+  "chunk_id": "uuid",
+  "claim": "Factual statement derived from chunk",
+  "supporting_spans": [
+    {"start": 142, "end": 387, "text": "exact quoted span"}
+  ],
+  "reasoning_trace": "Step-by-step reasoning path",
+  "confidence_local": 0.88,
+  "coverage_score": 0.45,
+  "status": "SUFFICIENT | INSUFFICIENT"
+}
+```
+
+## Cost Control Mechanisms
+
+| Mechanism | Source | Implementation |
+|-----------|--------|---------------|
+| Token budget split | §9.1 | 19,200 total ÷ K workers |
+| Early stopping | §7.2 | Cancel remaining when avg confidence ≥ 0.90 |
+| Max workers cap | §2.2 | Never more than 12 concurrent workers |
+| Pool timeout | §8.5 | 15s soft wall, partial results on breach |
+| Worker retry | §8.2 | 1 retry on failure, re-dispatch same chunk |
+
+## Test Results
+
+**15/15 tests passing** in 0.23s — all LLM calls mocked.
+
+| Test Group | Count | Coverage |
+|------------|-------|----------|
+| Schema validation | 2 | WorkerOutput, WorkerStatus enum |
+| Single worker | 5 | Sufficient, insufficient, span validation, coverage, error |
+| Worker pool | 8 | Parallel, early stop, budget, retry, cap, empty, aggregation, timeout |
+
+```
+============================= 15 passed in 0.23s ==============================
+```

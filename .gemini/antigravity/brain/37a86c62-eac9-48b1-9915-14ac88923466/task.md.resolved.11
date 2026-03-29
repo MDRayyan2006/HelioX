@@ -1,0 +1,7 @@
+# Refactoring Worker Pool to Use Groq
+
+- [ ] Install `groq` Python package
+- [ ] Update [workers/worker.py](file:///c:/HelioX/workers/worker.py) to use `groq.AsyncGroq` instead of Mistral
+- [ ] Implement multi-key rotation (round-robin or random) using the 3 provided Groq API keys
+- [ ] Ensure [_call_llm](file:///c:/HelioX/workers/worker.py#143-203) uses Groq's `llama3-70b-8192` or `llama3-8b-8192` model
+- [ ] Test the pipeline with [04OLAP.pdf](file:///c:/HelioX/04OLAP.pdf) to ensure the Groq workers evaluate the chunks successfully

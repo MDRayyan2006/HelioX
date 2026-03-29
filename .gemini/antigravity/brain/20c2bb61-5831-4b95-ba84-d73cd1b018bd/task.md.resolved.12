@@ -1,0 +1,16 @@
+# Confidence Engine — Task Tracker
+
+## Planning
+- [x] Research blueprint §2.12
+- [x] Write implementation plan
+- [x] User approval
+
+## Implementation
+- [x] Create [confidence/__init__.py](file:///c:/HelioX/confidence/__init__.py)
+- [x] Create [confidence/schemas.py](file:///c:/HelioX/confidence/schemas.py) — [ConfidenceAction](file:///c:/HelioX/confidence/schemas.py#15-22) Enum, [ConfidenceEvaluation](file:///c:/HelioX/confidence/schemas.py#29-36)
+- [x] Create [confidence/engine.py](file:///c:/HelioX/confidence/engine.py) — [ConfidenceEngine](file:///c:/HelioX/confidence/engine.py#41-139) computing global confidence
+- [x] Update [pyproject.toml](file:///c:/HelioX/pyproject.toml) to include `confidence*`
+
+## Verification
+- [x] Create [tests/test_confidence.py](file:///c:/HelioX/tests/test_confidence.py) — cover score calculation, inverted conflict severity, and decision thresholds
+- [x] Run tests and verify all pass ✓

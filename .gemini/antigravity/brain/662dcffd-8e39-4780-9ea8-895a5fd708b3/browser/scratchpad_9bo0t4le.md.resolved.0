@@ -1,0 +1,9 @@
+# Task Plan: Test HelioX React UI
+
+- [ ] Navigate to http://localhost:5173
+- [ ] Type "What is HelioX?" into the Query Input box
+- [ ] Click "Submit/Send"
+- [ ] Wait for processing (10-20s)
+- [ ] Verify AnswerCard (Answer text, Confidence, Citations)
+- [ ] Click Evidence toggle (if available)
+- [ ] Record findings

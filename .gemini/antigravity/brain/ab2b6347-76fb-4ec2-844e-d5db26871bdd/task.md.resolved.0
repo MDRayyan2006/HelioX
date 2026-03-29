@@ -1,0 +1,38 @@
+# Expert Profiling Service — Task Tracker
+
+## Phase 1: Planning
+- [x] Explore existing codebase structure
+- [x] Review architecture blueprint (Section 2.5 — Multi-Vector Expert Profiling)
+- [x] Review existing DB models, schemas, config, pipeline
+- [/] Write implementation plan
+- [ ] Get user approval on plan
+
+## Phase 2: Infrastructure Layer
+- [ ] Add new dependencies to [pyproject.toml](file:///c:/HelioX/pyproject.toml) (qdrant-client, asyncpg, redis, openai/sentence-transformers)
+- [ ] Extend [Settings](file:///c:/HelioX/ingestion/config.py#8-22) in [ingestion/config.py](file:///c:/HelioX/ingestion/config.py) with Qdrant, PostgreSQL, Redis, embedding config
+- [ ] Update [.env.example](file:///c:/HelioX/.env.example) with new environment variables
+- [ ] Create `profiling/__init__.py`
+- [ ] Create `profiling/clients.py` — Qdrant, PostgreSQL, Redis client wrappers
+
+## Phase 3: Schema & Models
+- [ ] Create `profiling/models.py` — SQLAlchemy models for profiling metadata tables
+- [ ] Create `profiling/schemas.py` — Pydantic DTOs for profiling data
+- [ ] Create `profiling/qdrant_setup.py` — Qdrant collection creation & index configuration
+
+## Phase 4: Core Profiling Services
+- [ ] Create `profiling/embedder.py` — primary semantic embedding generation
+- [ ] Create `profiling/entity_extractor.py` — NER-based entity vector generation
+- [ ] Create `profiling/hyde_generator.py` — HyDE embedding generation
+- [ ] Create `profiling/metadata_extractor.py` — constraint metadata extraction (temporal, geographic, scope)
+- [ ] Create `profiling/authority.py` — authority score computation
+
+## Phase 5: Orchestration & Background Processing
+- [ ] Create `profiling/service.py` — main profiling workflow orchestrator
+- [ ] Create `profiling/cache.py` — Redis hot cache layer
+- [ ] Create `profiling/tasks.py` — background task runner / queue integration
+
+## Phase 6: Verification
+- [ ] Create `tests/test_profiling_models.py`
+- [ ] Create `tests/test_profiling_service.py`
+- [ ] Run tests and validate
+- [ ] Write walkthrough

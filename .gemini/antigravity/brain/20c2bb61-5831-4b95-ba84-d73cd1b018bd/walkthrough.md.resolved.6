@@ -1,0 +1,42 @@
+# Session Memory — Walkthrough
+
+## What Was Built
+
+**Layer 13 — Controlled Session Memory** per §2.13. Provides statefulness via caching previous interactions using a strict context boundary.
+
+## Architecture
+
+Memory sits between the Orchestrator and the API Gateway. To aggressively prevent LLM halluciation spiraling, we use Pydantic schemas as a "firewall" to strip intermediate trace buffers before serializing to Redis.
+
+**Data Flow:**
+```mermaid
+graph LR
+    SUB["Orchestrator Payload<br/>(Contains Raw Reasoning)"] --> DTO["MemoryInteraction"]
+    DTO -->|Drops reasoning_trace| VALID["Validated Dump"]
+    VALID --> REDIS["redis.asyncio.set()"]
+```
+
+## Files Created
+
+| File | Purpose |
+|------|---------|
+| [schemas.py](file:///c:/HelioX/memory/schemas.py) | [UserPreferences](file:///c:/HelioX/memory/schemas.py#24-29), [MemoryInteraction](file:///c:/HelioX/memory/schemas.py#36-54) (Strictly drops unverified variables), and the top-level [SessionRecord](file:///c:/HelioX/memory/schemas.py#61-79). |
+| [session_store.py](file:///c:/HelioX/memory/session_store.py) | [RedisSessionStore](file:///c:/HelioX/memory/session_store.py#20-104). Initiates an async connection pool. Exposes [add_interaction](file:///c:/HelioX/memory/schemas.py#71-75) to fetch the session, append the strict record, and save it while renewing the TTL. |
+| [lifecycle.py](file:///c:/HelioX/memory/lifecycle.py) | [SessionLifecycleManager](file:///c:/HelioX/memory/lifecycle.py#21-61) handles TTL extension on hot sessions and exposes methods for immediate active closure. |
+| [\_\_init\_\_.py](file:///c:/HelioX/memory/__init__.py) | Package exports. |
+
+## Test Results
+
+**5/5 tests passing**.
+
+| Verification Step | Concept Covered |
+|-------------------|-----------------|
+| [test_fetch_nonexistent_session](file:///c:/HelioX/tests/test_memory.py#46-58) | Ensures fetching an unknown hash safely spawns a fresh [SessionRecord](file:///c:/HelioX/memory/schemas.py#61-79). |
+| [test_add_interaction](file:///c:/HelioX/tests/test_memory.py#59-82) | E2E validation of appending data to the mocked DB dump. |
+| [test_redis_ttl_refresh](file:///c:/HelioX/tests/test_memory.py#83-96) | Validates `EX=redis_ttl_seconds` parameter drops all the way down to the native client call. |
+| [test_exclusion_of_unverified_data](file:///c:/HelioX/tests/test_memory.py#97-115) | **Security:** Mock-injects garbage strings and raw trace buffers into the serialization pipeline and verifies Pydantic cleanly purges them. |
+| [test_lifecycle_manager](file:///c:/HelioX/tests/test_memory.py#116-134) | Validates manual cache flush / session teardowns. |
+
+```
+============================== 5 passed in 1.73s ==============================
+```

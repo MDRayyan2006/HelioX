@@ -1,0 +1,107 @@
+# Query Validation Agent — Implementation Plan
+
+Upgrade the existing [SQOValidator](file:///c:/HelioX/query_pipeline/validator.py#34-178) stub into a full **Query Validation Agent** (architecture §2.6, Layer 6). The agent detects problems, **corrects** the SQO when possible, and only locks it once all checks pass.
+
+## Current State
+
+The existing [validator.py](file:///c:/HelioX/query_pipeline/validator.py) is a thin stub: it flags issues and always locks the SQO unconditionally. It cannot correct or re-validate.
+
+## Proposed Changes
+
+### Query Pipeline Package
+
+---
+
+#### [MODIFY] [schemas.py](file:///c:/HelioX/query_pipeline/schemas.py)
+
+Add new schemas:
+
+| Schema | Description |
+|--------|-------------|
+| `ValidationVerdict` | Enum: [valid](file:///c:/HelioX/query_pipeline/validator.py#41-95), `corrected`, [invalid](file:///c:/HelioX/tests/test_profiling_service.py#284-294) |
+| `SQOCorrection` | `field`, `original_value`, `corrected_value`, `reason` |
+| `ConfidenceBreakdown` | `intent_confidence`, `decomposition_confidence`, `entity_grounding_ratio`, `constraint_coverage`, `overall_score` |
+| `ValidationReport` | Full report: verdict, corrections, confidence breakdown, warnings |
+
+Update [QueryAnalysisResponse](file:///c:/HelioX/query_pipeline/schemas.py#100-106) to include `validation_report`.
+
+---
+
+#### [NEW] [confidence_scorer.py](file:///c:/HelioX/query_pipeline/confidence_scorer.py)
+
+Multi-signal confidence scoring method:
+
+| Signal | Weight | Source |
+|--------|--------|--------|
+| Intent classification confidence | 0.20 | `IntentResult.confidence` |
+| Decomposition confidence | 0.35 | LLM self-assessed |
+| Entity grounding ratio | 0.25 | `grounded / total` entities |
+| Constraint coverage | 0.20 | Constraints present vs expected |
+
+Outputs `ConfidenceBreakdown` with per-signal scores + weighted `overall_score`.
+
+---
+
+#### [NEW] [validation_agent.py](file:///c:/HelioX/query_pipeline/validation_agent.py)
+
+Replaces [validator.py](file:///c:/HelioX/query_pipeline/validator.py) as the core validation module. Runs ordered validation checks that can **correct** the SQO:
+
+| Check | On Failure | Correction |
+|-------|-----------|------------|
+| **Ambiguity detection** | Flag vague queries (no entities, too short, no constraints) | Infer most-likely interpretation, reduce confidence |
+| **Missing constraints** | Inject defaults (scope→section-level, temporal→none) | Auto-correct + log correction |
+| **Entity grounding** | Verify entities exist in corpus (stub → upgradeable) | Split ungrounded from grounded, warn |
+| **Decomposition confidence** | Score < threshold → signal re-decompose | Return `needs_redecomposition=True` |
+| **Component validation** | fact_components empty / reasoning mismatch intent | Auto-fill fact from query, infer reasoning from intent |
+| **SQO lock** | All checks pass → freeze | Set `locked=True` |
+
+Decision logic:
+- **All checks pass** → `verdict = valid`, lock SQO
+- **Checks fail but correctable** → apply corrections → `verdict = corrected`, lock SQO
+- **Confidence still below threshold after corrections** → `verdict = invalid`, do NOT lock
+
+The old [validator.py](file:///c:/HelioX/query_pipeline/validator.py) internal imports are preserved for backward compatibility ([SQOValidator](file:///c:/HelioX/query_pipeline/validator.py#34-178) → `QueryValidationAgent`).
+
+---
+
+#### [MODIFY] [analyzer.py](file:///c:/HelioX/query_pipeline/analyzer.py)
+
+Integrate the validation agent with a **re-decompose loop**:
+1. Build draft SQO
+2. Run validation agent
+3. If `needs_redecomposition` and retries < max → re-decompose, rebuild, re-validate
+4. Return final SQO with `ValidationReport`
+
+---
+
+#### [MODIFY] [routes.py](file:///c:/HelioX/query_pipeline/routes.py)
+
+Response now includes `validation_report` with the full confidence breakdown.
+
+---
+
+#### [DELETE] [validator.py](file:///c:/HelioX/query_pipeline/validator.py)
+
+Replaced by `validation_agent.py`. Old [SQOValidator](file:///c:/HelioX/query_pipeline/validator.py#34-178) is re-exported from the new module for backward compatibility.
+
+---
+
+## Verification Plan
+
+### Automated Tests
+
+#### [NEW] [test_validation_agent.py](file:///c:/HelioX/tests/test_validation_agent.py)
+
+| Test Class | Coverage |
+|------------|----------|
+| `TestConfidenceScorer` | Weighted scoring, edge cases, all-zero signals |
+| `TestAmbiguityDetection` | No entities, short query, no constraints, overlapping signals |
+| `TestConstraintInjection` | Missing scope, missing temporal — defaults applied |
+| `TestEntityGrounding` | All grounded, none grounded, partial, empty list |
+| `TestComponentValidation` | Empty facts, reasoning-intent mismatch, auto-fill |
+| `TestValidationVerdict` | Valid → lock, Corrected → lock with corrections, Invalid → no lock |
+| `TestReDecomposeLoop` | Low confidence triggers re-decompose, max retries respected |
+
+```
+cd c:\HelioX && python -m pytest tests/test_validation_agent.py tests/test_query_analyzer.py -v
+```

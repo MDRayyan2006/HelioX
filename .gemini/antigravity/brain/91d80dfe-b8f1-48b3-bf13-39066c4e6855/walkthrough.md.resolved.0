@@ -1,0 +1,29 @@
+# HelioX RAG 3.0 — Walkthrough
+
+## What Was Built
+
+A complete enterprise-grade architecture blueprint for **HelioX RAG 3.0**, a Retrieval-Guided Multi-Agent Deliberative System. Delivered as a single structured document:
+
+- [architecture_blueprint.md](file:///d:/HelioX/architecture_blueprint.md)
+
+## Deliverables Covered
+
+| # | Deliverable | Blueprint Section |
+|---|---|---|
+| 1 | High-level technical architecture | §2 — 13-layer stack, orchestrator hard limits, mode controller, ingestion pipeline, expert profiling, query pipeline, retrieval engine, workers, synthesis, adjudication, composer, confidence engine, session memory |
+| 2 | Service breakdown | §3 — 14 services with deployment model, protocol, scaling strategy, and Mermaid dependency graph |
+| 3 | Data flow diagram | §4 — Query-time (Heavy Mode) and ingestion-time ASCII flow diagrams |
+| 4 | Folder structure | §5 — Full `heliox-rag/` tree with 15 top-level modules and deployment configs |
+| 5 | API boundary definitions | §6 — External REST endpoints (`/v1/query`, `/v1/ingest`, `/v1/session`, `/health`) with request/response schemas; internal gRPC RPCs for all 9 service-to-service calls |
+| 6 | Orchestrator interaction map | §7 — Full state machine (IDLE → INIT → MODE_SELECT → pipeline → VALIDATE → DELIVER/EXPAND/CLARIFY → IDLE); decision point table with 8 gating conditions |
+| 7 | Failure-handling model | §8 — 4-tier failure taxonomy, retry policies per dependency, circuit breaker configs, 4-level degradation ladder, timeout cascade with per-phase walls |
+| 8 | Cost-control strategy | §9 — Token budget allocation per phase, 6 cost levers, per-query cost tracking schema, organizational guardrails, and 11 observability metrics |
+
+## Key Design Decisions
+
+- **No implementation code** — purely structural blueprint as requested.
+- **All 7 core principles** are enforced architecturally, not just stated.
+- **Hard caps are explicit**: `MAX_CONFLICT_ROUNDS=2`, `MAX_TOKEN_BUDGET=32K`, `MAX_RETRIEVAL_EXPANSIONS=2`, `MAX_WORKERS_PER_QUERY=12`.
+- **Dynamic K** uses incremental coverage gain with ε-stop, clamped to [5, 12].
+- **Embedding versioning** uses shadow-collection swap for zero-downtime model upgrades.
+- **Graceful degradation** from Level 0 (nominal) to Level 3 (offline/cached) ensures the system never fully fails silently.

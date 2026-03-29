@@ -1,0 +1,9 @@
+# Task: Verify Frontend Response
+
+## Plan
+- [ ] Open http://localhost:5173/
+- [ ] Wait for splash screen to disappear/load
+- [ ] Type query: "What is the core argument of this document?"
+- [ ] Submit query
+- [ ] Observe and capture response (screenshot/DOM)
+- [ ] Summarize findings

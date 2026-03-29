@@ -1,0 +1,46 @@
+# HelioX RAG 3.0 Web App Setup & Walkthrough
+
+I have successfully created and configured the React frontend for the HelioX web application, using Vite, Tailwind CSS v4, and Lucide-React.
+
+## What Was Completed:
+
+1.  **Project Initialization & Configuration**:
+    *   Set up standard Vite React project structure.
+    *   Configured Tailwind v4 and disabled base Vite styles for a bespoke dark-theme.
+    *   Updated TypeScript configuration ([tsconfig.app.json](file:///c:/HelioX/frontend/tsconfig.app.json)) to allow JS/JSX files as requested, and renamed [.tsx](file:///c:/HelioX/frontend/src/App.tsx) files to [.jsx](file:///c:/HelioX/frontend/src/App.jsx).
+
+2.  **Layout System**:
+    *   Built [MainLayout.jsx](file:///c:/HelioX/frontend/src/components/MainLayout.jsx) with a responsive sidebar and a premium "glassmorphism" aesthetic using subtle mesh gradients and glowing elements.
+
+3.  **Core Components**:
+    *   **QueryInput**: A dynamic text area that expands automatically. Includes a toggle for "Light" vs "Heavy" processing modes.
+    *   **ThinkingIndicator**: A multi-step visual pipeline progress indicator that displays the complex stages of HelioX (e.g. "Parallel Worker Agent Evaluation", "Cross-Chunk Synthesis") depending on the mode selected.
+    *   **AnswerCard**: A rich display component showing the final synthesis, the internal confidence score (with color-coded badges), constraint applications, adjudication reports for resolving internal conflicts, and a collapsible citations panel pointing to the original source chunks.
+    *   ***NEW* DocumentUploader**: A collapsible drop-zone panel that allows users to mock-upload multiple context files. It provides visual feedback for the simulated upload progress.
+
+4.  **Mock API Integration**:
+    *   Created [services/api.js](file:///c:/HelioX/frontend/src/services/api.js) to simulate the connection to the backend orchestrator defined in the architect blueprint. It mocks responses and simulated delays corresponding to Light vs Heavy processing mode.
+    *   ***NEW* Contextual Simulation**: If documents are uploaded via the [DocumentUploader](file:///c:/HelioX/frontend/src/components/DocumentUploader.jsx#4-178), the state is passed to the mock API, which will then dynamically update the text response and citations to show the system answering "accordingly" to those uploaded files.
+
+## Validation Results
+
+The application renders perfectly in the browser and the internal state flows function as expected.
+
+See the recording below for a full demonstration of submitting a query in Heavy mode, seeing the pipeline update, and viewing the detailed citation card: 
+
+![HelioX UI Demo](/C:/Users/study/.gemini/antigravity/brain/662dcffd-8e39-4780-9ea8-895a5fd708b3/heliox_react_frontend_demo_1772971158520.webp)
+
+Here is a static screenshot of the final expanded AnswerCard view:
+
+![Screenshot expanded evidence](/C:/Users/study/.gemini/antigravity/brain/662dcffd-8e39-4780-9ea8-895a5fd708b3/.system_generated/click_feedback/click_feedback_1772971244588.png)
+
+Here is a static screenshot of the new Document Upload modal:
+
+![Document Upload Modal](/C:/Users/study/.gemini/antigravity/brain/662dcffd-8e39-4780-9ea8-895a5fd708b3/.system_generated/click_feedback/click_feedback_1772971870088.png)
+
+
+## Next Steps
+
+To connect this to your Python backend:
+1.  Update [src/services/api.js](file:///c:/HelioX/frontend/src/services/api.js) to replace the [submitQuery](file:///c:/HelioX/frontend/src/services/api.js#8-99) mock with an actual `fetch` or `axios` POST request to your FastAPI endpoint.
+2.  Ensure your FastAPI application enables CORS for `http://localhost:5173`.

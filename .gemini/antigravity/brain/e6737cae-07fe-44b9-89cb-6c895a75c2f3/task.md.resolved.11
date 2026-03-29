@@ -1,0 +1,5 @@
+- [x] Update [ingestion/config.py](file:///c:/HelioX/ingestion/config.py), [query_pipeline/config.py](file:///c:/HelioX/query_pipeline/config.py), and [.env](file:///c:/HelioX/.env) with new Mistral API keys.
+- [x] Refactor [workers/worker.py](file:///c:/HelioX/workers/worker.py) to use `mistral_api_key_worker`.
+- [x] Refactor [query_pipeline/decomposer.py](file:///c:/HelioX/query_pipeline/decomposer.py) to use `mistral_api_key_decomposer`.
+- [ ] Refactor [profiling/entity_extractor.py](file:///c:/HelioX/profiling/entity_extractor.py) and [query_pipeline/entity_extractor.py](file:///c:/HelioX/query_pipeline/entity_extractor.py) to use an LLM API call using `mistral_api_key_entity`.
+- [ ] Test the pipeline execution.

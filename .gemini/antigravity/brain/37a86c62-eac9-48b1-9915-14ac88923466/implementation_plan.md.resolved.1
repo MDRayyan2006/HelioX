@@ -1,0 +1,33 @@
+# Wiring Frontend to HelioX Backend
+
+## Problem
+The user uploaded a document ([04OLAP.pdf](file:///c:/HelioX/04OLAP.pdf)) and queried "what is OLAP" in the frontend, but received a generic, incorrect answer.
+
+## Root Cause
+The React frontend is currently entirely mocked. [src/services/api.js](file:///c:/HelioX/frontend/src/services/api.js) returns a hardcoded response ("Based on the provided corpus, here is the answer...") after a `setTimeout`. It does not communicate with the HelioX python backend, nor does the document uploader actually parse or index the uploaded PDF.
+
+## Proposed Changes
+
+We need to stand up a lightweight Python backend using FastAPI and point the React frontend to it.
+
+### [NEW] [c:\HelioX\server.py](file:///c:/HelioX/server.py)
+Create a FastAPI server that exposes two endpoints:
+1. `POST /api/upload`: Accepts a PDF file upload, saves it temporarily, and calls the `ingestion.pipeline.ingest_file(pdf_path)` to chunk and embed the document.
+2. `POST /api/query`: Accepts a user query and runs the pipeline (Analyzer -> Retriever -> Workers -> Synthesizer -> Adjudicator -> Composer -> Confidence) similar to [run_pipeline.py](file:///c:/HelioX/run_pipeline.py). Returns the standard structured response (direct answer, citations, confidence score).
+
+### [MODIFY] [c:\HelioX\frontend\src\services\api.js](file:///c:/HelioX/frontend/src/services/api.js)
+1. Replace the `setTimeout` mock with an actual `axios.post('http://localhost:8000/api/query')` call.
+2. Ensure the response object maps correctly to the existing Frontend UI components (`result.answer.direct_answer`, etc.).
+
+### [MODIFY] [c:\HelioX\frontend\src\components\DocumentUploader.jsx](file:///c:/HelioX/frontend/src/components/DocumentUploader.jsx)
+1. Update [simulateUpload](file:///c:/HelioX/frontend/src/components/DocumentUploader.jsx#18-31) to actually post `FormData` with the file to `http://localhost:8000/api/upload`.
+
+## Verification Plan
+
+### Automated Tests
+- Run `uvicorn server:app --reload`
+- Check API docs at `http://localhost:8000/docs`.
+- Run frontend (`npm run dev`) and test uploads/queries via the subagent.
+
+### Manual Verification
+- Ask the user to upload [04OLAP.pdf](file:///c:/HelioX/04OLAP.pdf) and query "What is OLAP" in their open browser tab. Ensure the backend logs the ingestion and query processing, and the frontend gets the right answer.

@@ -1,0 +1,5 @@
+{
+  "artifactType":  "ARTIFACT_TYPE_IMPLEMENTATION_PLAN",
+  "summary":  "Implementation plan for the Expert Profiling Service — Layer 4 of the HelioX RAG 3.0 architecture. Covers infrastructure clients (Qdrant, PostgreSQL, Redis), SQLAlchemy profiling metadata models, Qdrant collection setup, core profiling services (semantic embedder, entity extractor, HyDE generator, constraint metadata extractor, authority scorer), the orchestration service, background processing architecture, Redis cache layer, and verification plan with automated tests.",
+  "updatedAt":  "2026-03-03T10:58:37.460787Z"
+}

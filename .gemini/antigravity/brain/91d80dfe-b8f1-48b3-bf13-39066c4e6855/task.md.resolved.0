@@ -1,0 +1,13 @@
+# HelioX RAG 3.0 — Architecture Blueprint
+
+- [x] Explore workspace
+- [/] Create architecture blueprint document
+  - [/] High-level technical architecture
+  - [ ] Service breakdown (microservice boundaries)
+  - [ ] Data flow diagram (text-based)
+  - [ ] Folder structure
+  - [ ] API boundary definitions
+  - [ ] Orchestrator interaction map
+  - [ ] Failure-handling model
+  - [ ] Cost-control strategy
+- [ ] Final review

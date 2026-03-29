@@ -1,0 +1,36 @@
+# HelioX React Frontend Implementation Tasks
+
+## 1. Setup & Foundational Styling
+- [ ] Configure Tailwind CSS in [index.css](file:///c:/HelioX/frontend/src/index.css) (remove default Vite styles).
+- [ ] Define color palette and typography in `tailwind.config.js` or [index.css](file:///c:/HelioX/frontend/src/index.css) variables, aiming for a premium, dark-mode focused enterprise look.
+
+## 2. Layout & Shell
+- [ ] Create `MainLayout` component:
+  - Sidebar for chat history / sessions (optional for MVP, but good for structure).
+  - Main content area for the current query/chat.
+  - Header with branding, mode toggle (Light/Heavy), and settings/info.
+
+## 3. Core Components
+- [ ] `QueryInput`: A prominent, centered input field for the user to type their question, with a submit button.
+- [ ] `ChatMessage`: A component to display either the user's query or the system's response.
+- [ ] `AnswerCard`: A structured component to display the final answer, including:
+  - The text response with citations.
+  - Confidence score indicator.
+  - Toggle to show "Thinking Process" or "Evidence".
+- [ ] `EvidencePanel` / `CitationViewer`: To display the exact source chunks retrieved and cited.
+- [ ] `StatusIndicator`: To show the pipeline progress (Query Analysis -> Retrieval -> Synthesis -> Composition) when Heavy mode is active.
+
+## 4. State Management & API Integration
+- [ ] Define TypeScript interfaces for API requests/responses (matching the Python backend's `StructuredQueryResult`).
+- [ ] Create a custom hook `useQueryAction` or similar to handle:
+  - Sending the query to the FastAPI backend (e.g., POST `/query`).
+  - Handling loading states and streaming (if applicable, otherwise standard fetch).
+  - Error handling (timeouts, 500s, degradation messages).
+
+## 5. Page Assembly
+- [ ] Update [App.tsx](file:///c:/HelioX/frontend/src/App.tsx) to use the `MainLayout` and orchestrate the `QueryInput` and `ChatMessage`/`AnswerCard` components.
+
+## 6. Polish
+- [ ] Add smooth transitions for status updates.
+- [ ] Ensure responsive design for varying screen sizes.
+- [ ] Implement "Premium Aesthetic" requirements (glassmorphism, subtle gradients, rich typography).

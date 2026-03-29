@@ -1,0 +1,19 @@
+# Worker Agent Service — Task Tracker
+
+## Planning
+- [x] Research architecture blueprint (§2.8, §7.2, §8.2, §8.5, §9.1)
+- [x] Review existing codebase (SQO schemas, ScoredChunk, config)
+- [x] Write implementation plan
+- [x] User approval of plan
+
+## Implementation
+- [x] Create [workers/__init__.py](file:///c:/HelioX/workers/__init__.py) — package init
+- [x] Create [workers/schemas.py](file:///c:/HelioX/workers/schemas.py) — WorkerOutput, SupportingSpan, PoolResult DTOs
+- [x] Create [workers/prompts.py](file:///c:/HelioX/workers/prompts.py) — LLM system + user prompts (citation-only rule)
+- [x] Create [workers/worker.py](file:///c:/HelioX/workers/worker.py) — single-chunk worker logic (LLM call + output parse)
+- [x] Create [workers/pool.py](file:///c:/HelioX/workers/pool.py) — async pool manager (parallel exec, early stop, cost control)
+- [x] Update [pyproject.toml](file:///c:/HelioX/pyproject.toml) — add workers package
+
+## Verification
+- [x] Create [tests/test_workers.py](file:///c:/HelioX/tests/test_workers.py) — unit tests with worker output display
+- [x] Run tests and verify all 15 pass ✓

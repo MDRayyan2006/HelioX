@@ -1,0 +1,5 @@
+{
+  "artifactType":  "ARTIFACT_TYPE_IMPLEMENTATION_PLAN",
+  "summary":  "Plan to fix the missing chunk ID data in PostgreSQL. The root cause is that run_pipeline.py never calls ProfilingService._insert_postgres(). The fix adds a profiling step to the pipeline runner that creates ChunkProfile rows in PostgreSQL after ingestion, using the existing ProfilingService infrastructure but mocking external dependencies (Qdrant, Redis, Gemini embedding API).",
+  "updatedAt":  "2026-03-06T18:20:17.599601100Z"
+}

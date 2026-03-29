@@ -1,0 +1,56 @@
+# Distributed Storage and Retrieval Architecture
+
+## Goal Description
+Re-architect the HelioX system to distribute storage across four specialized databases as requested:
+1. **PostgreSQL**: Store raw chunk text
+2. **Redis**: Store chunk profiles and summaries
+3. **Qdrant**: Store chunk embeddings
+4. **Elasticsearch**: Store BM25 indexing (running at `https://localhost:9200`)
+
+Modify the retrieval engine to query all appropriate databases *simultaneously* and consolidate the results. Cleanup legacy code processes that are no longer necessary.
+
+## User Review Required
+> [!WARNING]
+> This requires `elasticsearch` (and `[async]`) python packages to be installed in the environment if not already present. Elasticsearch should be running locally on port 9200.
+
+## Proposed Changes
+
+### Configuration & Connections
+#### [MODIFY] [ingestion/config.py](file:///c:/HelioX/ingestion/config.py)
+- Add `elasticsearch_url` pointing to `https://localhost:9200`.
+
+#### [MODIFY] [profiling/clients.py](file:///c:/HelioX/profiling/clients.py)
+- Add an `AsyncElasticsearch` client getter pointing to the new URL.
+
+---
+
+### Database Schema (PostgreSQL)
+#### [MODIFY] [profiling/models.py](file:///c:/HelioX/profiling/models.py)
+- **[DELETE]** `ChunkProfile` and `EmbeddingVersion` classes (since profiles are moving to Redis).
+- **[NEW]** `RawChunk` model inheriting from `ProfilingBase` to store `chunk_id`, `document_id`, `section_id`, and `text`.
+
+---
+
+### Ingestion Logic
+#### [MODIFY] [run_pipeline.py](file:///c:/HelioX/run_pipeline.py)
+- Update "Stage 0" data persistence:
+  - **PostgreSQL**: Insert raw chunk text into the local DB.
+  - **Redis**: Serialize profile data (including Mistral-generated summaries) and `redis.set` them using `profile:{chunk_id}` keys.
+  - **Elasticsearch**: Index chunks for BM25 via the ES `index` API.
+  - **Qdrant**: Keep current vector upsert placeholders (or implement actual upsert).
+
+---
+
+### Retrieval Engine
+#### [NEW] [retrieval/elastic_search.py](file:///c:/HelioX/retrieval/elastic_search.py)
+- Implement `search_bm25` asynchronously querying the new local Elasticsearch cluster.
+
+#### [MODIFY] [retrieval/engine.py](file:///c:/HelioX/retrieval/engine.py)
+- Change `HybridRetrievalEngine.retrieve`:
+  - Replace sequential filtering (metadata -> entity -> vector -> fallback) with concurrent `asyncio.gather`.
+  - Simulate hitting ElasticSearch (BM25), Qdrant (Vectors/Dense), and Redis (Profiles/Metadata) simultaneously.
+  - Fetch corresponding raw chunk text payloads from PostgreSQL to construct complete `ScoredChunk` lists for the LLM workers to process.
+
+## Verification Plan
+### Manual Verification
+- Execute `run_pipeline.py` with mock endpoints initialized properly. Verify console logs indicate that Elasticsearch, Qdrant, Redis, and Postgres are populated correctly during Ingestion, and queried concurrently during Retrieval.

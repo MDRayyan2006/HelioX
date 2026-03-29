@@ -1,0 +1,66 @@
+[0] (500,500)<div  />
+	H
+	HelioX
+	3.0
+	Capabilities
+	[1] (83,168)<button class='w-full flex items-center gap-3 px-3 py-2 rounded-md transition-all text-sm font-medium text-left
+        bg-teal-500/10 text-teal-400 border border-teal-500/20'>Compliance Analysis />
+		Compliance Analysis
+	[2] (83,224)<button class='w-full flex items-center gap-3 px-3 py-2 rounded-md transition-all text-sm font-medium text-left
+        text-slate-400 hover:bg-slate-800/50 hover:text-slate-200'>Document Query />
+		Document Query
+	[3] (83,279)<button class='w-full flex items-center gap-3 px-3 py-2 rounded-md transition-all text-sm font-medium text-left
+        text-slate-400 hover:bg-slate-800/50 hover:text-slate-200'>Audit Trail />
+		Audit Trail
+	Recent Sessions
+	[4] (83,405)<button class='w-full flex items-center gap-3 px-3 py-2 rounded-md transition-all text-sm font-medium text-left
+        text-slate-400 hover:bg-slate-800/50 hover:text-slate-200'>Vendor A vs B MSA />
+		Vendor A vs B MSA
+	[5] (83,460)<button class='w-full flex items-center gap-3 px-3 py-2 rounded-md transition-all text-sm font-medium text-left
+        text-slate-400 hover:bg-slate-800/50 hover:text-slate-200'>Q4 Churn Factors />
+		Q4 Churn Factors
+	[6] (83,514)<button class='w-full flex items-center gap-3 px-3 py-2 rounded-md transition-all text-sm font-medium text-left
+        text-slate-400 hover:bg-slate-800/50 hover:text-slate-200'>API Rate Limits />
+		API Rate Limits
+	[7] (83,953)<button class='flex items-center gap-2 text-slate-400 hover:text-slate-200 transition-colors w-full p-2 rounded-md hover:bg-slate-800/50'>Settings />
+		Settings
+	[8] (946,38)<button class='flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors border bg-teal-500/10 text-teal-400 border-teal-500/30'>1 Docs Active />
+	[9] (583,369)<div class='flex-1 overflow-y-auto px-4 py-8 scroll-smooth w-full' scrollable='true' />
+		Adjudication Report
+		Resolved minor semantic conflict between chunk C1 and an omitted chunk.
+		[10] (433,158)<button class='flex items-center gap-2 text-sm font-medium text-slate-400 hover:text-slate-200 transition-colors py-2'>Supporting Evidence (
+2
+Cited Spans) />
+			Supporting Evidence (
+			2
+			Cited Spans)
+		[
+		C1
+		]
+		ID:
+		chk_fvxduo_1
+		"
+		This specific chunk was retrieved from 04OLAP.pdf after intent classification and entity overlap filtering.
+		"
+		[
+		C2
+		]
+		ID:
+		chk_fvxduo_2
+		"
+		Furthermore, constraints within 04OLAP.pdf such as temporal and geographic boundaries were respected during retrieval.
+		"
+		Constraints Applied:
+		Temporal:
+		None detected
+		• Geo:
+		None detected
+		• Regulatory:
+		General
+	[11] (583,753)<textarea class='w-full bg-transparent text-slate-100 placeholder-slate-500 p-4 resize-none focus:outline-none min-h-[100px] text-lg rounded-t-2xl' placeholder='Ask a question about your documents...' />
+	[12] (330,870)<button class='px-3 py-1.5 text-xs font-semibold rounded-md transition-colors text-slate-500 hover:text-slate-300'>Light />
+	[13] (371,870)<button class='px-3 py-1.5 text-xs font-semibold rounded-md transition-colors flex items-center gap-1 text-slate-500 hover:text-slate-300'>Auto />
+	[14] (415,870)<button class='px-3 py-1.5 text-xs font-semibold rounded-md transition-colors bg-indigo-500/20 text-indigo-400 border border-indigo-500/30'>Heavy />
+	[15] (459,870)<button class='p-2 text-slate-500 hover:text-slate-300 transition-colors tooltip relative group/btn' />
+	[16] (842,870)<button class='p-3 rounded-xl flex items-center justify-center transition-all bg-teal-500 text-slate-950 hover:bg-teal-400 hover:shadow-[0_0_15px_rgba(20,184,166,0.5)]' />
+	HelioX may produce inaccurate information. Verify critical answers against source documents.

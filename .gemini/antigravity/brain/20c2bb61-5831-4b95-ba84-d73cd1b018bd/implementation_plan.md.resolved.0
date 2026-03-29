@@ -1,0 +1,217 @@
+# Hybrid Retrieval Engine — Implementation Plan
+
+Build the **Layer 7 — Hybrid Retrieval Engine** as defined in architecture blueprint §2.7. The engine implements a 4-stage retrieval cascade with metadata filtering, entity matching, vector similarity search, fallback broad retrieval, adaptive K reduction, weighted relevance scoring, and confidence estimation.
+
+## Proposed Changes
+
+### Retrieval Configuration
+
+#### [NEW] [config.py](file:///c:/HelioX/retrieval/config.py)
+
+Retrieval-specific [Settings](file:///c:/HelioX/ingestion/config.py#9-45) extending `pydantic_settings.BaseSettings`. All tuning knobs in one place:
+
+- **Scoring weights**: `w1..w6` for recency, source_rank, citation_density, worker_confidence, cosine_similarity, query_coverage (matching §2.7 defaults)
+- **Embedding blend weights**: `alpha`, `beta`, `gamma` for multi-vector scoring (§2.5)
+- **Dynamic K**: `initial_k=25`, `final_k_min=5`, `final_k_max=12`, `coverage_epsilon=0.02`
+- **Recall thresholds**: `min_recall_threshold=0.60`, `max_retrieval_expansions=2`
+- **Entity overlap**: `min_entity_overlap=1`
+
+---
+
+### Retrieval Schemas
+
+#### [NEW] [schemas.py](file:///c:/HelioX/retrieval/schemas.py)
+
+Pydantic DTOs for retrieval input/output:
+
+| Model | Purpose |
+|-------|---------|
+| `RetrievalRequest` | Input: locked SQO + initial K |
+| `ScoredChunk` | Single chunk with all score components |
+| `ScoreBreakdown` | Breakdown of weighted_score into 6 signals |
+| `RetrievalResult` | Output: ranked chunks, final K, recall, stage diagnostics |
+| `StageResult` | Per-stage diagnostic (candidate count, duration) |
+| `RetrievalConfidence` | Confidence estimation for the retrieval pass |
+
+---
+
+### Scoring Engine
+
+#### [NEW] [scoring.py](file:///c:/HelioX/retrieval/scoring.py)
+
+Implements the **Relevance-Aware Scoring** formula from §2.7:
+
+```
+weighted_score =
+    (w1 × recency)              +  (w2 × source_rank)        +
+    (w3 × citation_density)     +  (w4 × worker_confidence)  +
+    (w5 × cosine_similarity)    +  (w6 × query_coverage_score)
+```
+
+Key functions:
+- `compute_recency_score(profiled_at: datetime) → float` — exponential decay (half-life ~180 days)
+- `compute_query_coverage(chunk_entities, sqo_entities, chunk_text, sqo_fact_components) → float` — entity overlap ratio + keyword coverage blend
+- `compute_weighted_score(breakdown: ScoreBreakdown) → float` — applies configurable weights
+- `rank_chunks(chunks: list[ScoredChunk]) → list[ScoredChunk]` — sort descending by weighted_score
+
+---
+
+### Stage 1: Metadata Filtering
+
+#### [NEW] [metadata_filter.py](file:///c:/HelioX/retrieval/metadata_filter.py)
+
+Queries PostgreSQL `chunk_profiles` table via SQLAlchemy async. Filters by:
+- **Temporal**: `temporal_start`/`temporal_end` overlap with SQO temporal constraints
+- **Geographic**: `geographic_scope` intersection with SQO geographic constraints
+- **Authority**: `authority_score >= threshold` (configurable, default 0.0 — no threshold initially)
+
+Returns list of candidate `chunk_id`s with their metadata (authority_score, profiled_at, entity_list, geographic_scope).
+
+Uses `profiling.clients.get_postgres_session()` for DB access and `profiling.models.ChunkProfile` as the ORM model.
+
+---
+
+### Stage 2: Entity Matching
+
+#### [NEW] [entity_filter.py](file:///c:/HelioX/retrieval/entity_filter.py)
+
+Filters Stage 1 candidates to retain only chunks whose `entity_list` has overlap ≥ `min_entity_overlap` with SQO entities. Case-insensitive matching.
+
+Pure in-memory filtering on the metadata already fetched in Stage 1 (entity_list is stored in ChunkProfile). No additional DB calls needed.
+
+---
+
+### Stage 3: Vector Similarity Search
+
+#### [NEW] [vector_search.py](file:///c:/HelioX/retrieval/vector_search.py)
+
+Searches Qdrant `semantic_embeddings` collection within the Stage 2 candidate set.
+
+- Embeds the query using `profiling.embedder.SemanticEmbedder.embed_single()`
+- Searches with `chunk_id` filter to restrict to Stage 2 candidates
+- Applies the multi-vector scoring blend (§2.5): `α × cos(query, semantic) + β × cos(query, entity_vec) + γ × cos(hyde, semantic)`
+- Fetches entity vectors from `entity_vectors` collection for the β-component
+- `γ` is 0.0 unless HyDE is enabled (fallback scenario)
+- Returns up to `initial_k` candidates with cosine_similarity scores
+
+Uses `profiling.clients.get_qdrant_client()` for Qdrant access.
+
+---
+
+### Stage 4: Fallback Broad Retrieval
+
+#### [NEW] [fallback.py](file:///c:/HelioX/retrieval/fallback.py)
+
+Activated only when estimated recall < `min_recall_threshold` (0.60). Broadens retrieval by:
+
+1. Relaxing metadata filters (remove geographic/temporal constraints)
+2. Searching full Qdrant `semantic_embeddings` without candidate pre-filter
+3. Optionally enabling HyDE (sets `γ = 0.15`) if expansion count < `max_retrieval_expansions`
+4. Merges new candidates with existing set (deduplicated by chunk_id)
+
+Bounded by `MAX_RETRIEVAL_EXPANSIONS = 2` — at most 2 fallback rounds.
+
+---
+
+### Dynamic K Reduction
+
+#### [NEW] [dynamic_k.py](file:///c:/HelioX/retrieval/dynamic_k.py)
+
+Implements the **Dynamic K Strategy** from §2.7:
+
+```python
+for i in range(1, len(ranked)):
+    gain = coverage(ranked[:i+1]) - coverage(ranked[:i])
+    if gain < epsilon:  # 0.02
+        final_k = i
+        break
+final_k = clamp(final_k, k_min=5, k_max=12)
+```
+
+- `compute_coverage(chunks, sqo) → float` — fraction of SQO fact_components covered by the chunk set
+- `apply_dynamic_k(ranked_chunks, sqo) → (list[ScoredChunk], int)` — returns trimmed list + final K
+
+---
+
+### Retrieval Orchestrator
+
+#### [NEW] [engine.py](file:///c:/HelioX/retrieval/engine.py)
+
+Main `HybridRetrievalEngine` class orchestrating all 4 stages:
+
+```python
+class HybridRetrievalEngine:
+    async def retrieve(self, sqo: StructuredQueryObject, k_initial: int = 25) -> RetrievalResult:
+        # Stage 1: Metadata filter (PostgreSQL)
+        # Stage 2: Entity overlap filter
+        # Stage 3: Vector similarity search (Qdrant)
+        # Compute scores + rank
+        # Stage 4: Fallback if recall < threshold
+        # Apply dynamic K
+        # Compute confidence
+        # Return RetrievalResult
+```
+
+Confidence estimation formula (retrieval-level):
+```
+retrieval_confidence = weighted_mean(
+    recall_estimate      × 0.30,
+    avg_cosine_similarity × 0.30,
+    query_coverage       × 0.25,
+    candidate_diversity  × 0.15
+)
+```
+
+---
+
+### Package Init
+
+#### [NEW] [\_\_init\_\_.py](file:///c:/HelioX/retrieval/__init__.py)
+
+Package init exposing `HybridRetrievalEngine` and key schemas.
+
+---
+
+### Project Configuration
+
+#### [MODIFY] [pyproject.toml](file:///c:/HelioX/pyproject.toml)
+
+- Add `"retrieval*"` to `[tool.setuptools.packages.find].include`
+- Add `retrieval` optional dependency group with `qdrant-client`, `asyncpg`, `google-genai`
+
+---
+
+## Verification Plan
+
+### Automated Tests
+
+#### [NEW] [test_retrieval_engine.py](file:///c:/HelioX/tests/test_retrieval_engine.py)
+
+Comprehensive unit tests with mocked DB clients (no real PostgreSQL/Qdrant needed):
+
+| Test | What it verifies |
+|------|-----------------|
+| `test_scoring_weights_sum_to_one` | Config weight validation |
+| `test_recency_score_recent_doc` | Recent doc → high recency |
+| `test_recency_score_old_doc` | Old doc → low recency |
+| `test_query_coverage_full_match` | All entities match → 1.0 |
+| `test_query_coverage_partial_match` | Partial match → proportional |
+| `test_weighted_score_computation` | Formula correctness |
+| `test_metadata_filter_temporal` | Temporal constraint filtering |
+| `test_metadata_filter_geographic` | Geographic constraint filtering |
+| `test_entity_filter_overlap` | Entity overlap ≥ 1 retained |
+| `test_entity_filter_no_overlap` | No overlap → excluded |
+| `test_dynamic_k_coverage_plateau` | Stops at coverage gain < ε |
+| `test_dynamic_k_clamped_min` | Never below k_min=5 |
+| `test_dynamic_k_clamped_max` | Never above k_max=12 |
+| `test_fallback_triggered_on_low_recall` | Fallback activates at recall < 0.60 |
+| `test_fallback_bounded_by_max_expansions` | Max 2 fallback rounds |
+| `test_full_retrieval_pipeline` | End-to-end with mocked stages |
+| `test_retrieval_confidence_estimation` | Confidence formula correctness |
+| `test_engine_with_empty_corpus` | Graceful handling of no results |
+
+**Run command:**
+```
+cd c:\HelioX
+python -m pytest tests/test_retrieval_engine.py -v
+```

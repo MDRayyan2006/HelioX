@@ -1,0 +1,54 @@
+# Answer Composer — Walkthrough
+
+## What Was Built
+
+**Layer 11 — Evidence-Bound Answer Composer** per §2.11. This module is responsible for orchestrating the final Answer generation. It takes the output from the [AdjudicationEngine](file:///c:/HelioX/adjudication/engine.py#30-278) and uses the `gemini-2.0-flash` model to format the claims into a coherent answer with strict sentence-level citations.
+
+## Architecture
+
+```mermaid
+graph TD
+    SQO["Structured Query Object"] --> COMPOSER["AnswerComposer.generate()"]
+    ADJ["Adjudication Result"] --> COMPOSER
+    
+    COMPOSER --> COV_CHK{"Coverage < 0.60?"}
+    
+    COV_CHK -->|"Yes"| FALLBACK["Return Insufficient Evidence String"]
+    COV_CHK -->|"No"| PROMPT["Assign IDs [C1], [C2]<br/>Format Constraints"]
+    
+    PROMPT --> LLM["Gemini 2.0 Flash<br/>JSON Mode"]
+    LLM --> PARSE["Parse FinalAnswer"]
+    
+    FALLBACK --> OUT["FinalAnswer DTO"]
+    PARSE --> OUT
+```
+
+## Files Created
+
+| File | Purpose |
+|------|---------|
+| [schemas.py](file:///c:/HelioX/composer/schemas.py) | [ComputedCitation](file:///c:/HelioX/composer/schemas.py#23-30) (with exact span indices), [AnswerMetadata](file:///c:/HelioX/composer/schemas.py#32-39), and the top-level [FinalAnswer](file:///c:/HelioX/composer/schemas.py#41-47). Maps strictly to the JSON schema in blueprint §2.11. |
+| [prompts.py](file:///c:/HelioX/composer/prompts.py) | **Zero-shot System Prompt**. Forbids external knowledge, enforces inline `[Cx]` citations, and requires constraints to be logged. |
+| [generator.py](file:///c:/HelioX/composer/generator.py) | [AnswerComposer](file:///c:/HelioX/composer/generator.py#32-161) class. Wraps the SDK call. Specifically computes a mock coverage score and bypasses the LLM call entirely if `coverage < 0.60` threshold. |
+| [\_\_init\_\_.py](file:///c:/HelioX/composer/__init__.py) | Package exports. |
+
+## Bug Fixes During Implementation
+
+1. **`ingestion.config` import**: Mistakenly imported `INGESTION_CONFIG` instead of `settings`. Fixed to accurately access the `gemini_api_key`.
+2. **[QueryConstraints](file:///c:/HelioX/query_pipeline/schemas.py#42-49) vs [TemporalConstraint](file:///c:/HelioX/query_pipeline/schemas.py#35-40)**: Updating the test mocks to correctly instantiate Pydantic nested models [TemporalConstraint(after="2024")](file:///c:/HelioX/query_pipeline/schemas.py#35-40) rather than passing raw strings, which caused validation failures.
+3. **[SupportingSpan](file:///c:/HelioX/workers/schemas.py#33-39) properties**: The underlying core schemas expect `.start` and `.end`, but the generator temporarily used `.start_idx`. Unified to use `.start` and `.end`.
+
+## Test Results
+
+**4/4 tests passing**.
+
+| Test | Coverage |
+|------|----------|
+| [test_insufficient_coverage](file:///c:/HelioX/tests/test_composer.py#66-83) | Proves bypass logic and fallback strings work before wasting LLM tokens. |
+| [test_llm_json_parsing](file:///c:/HelioX/tests/test_composer.py#84-107) | Validates that a stringified JSON mock is successfully converted to the Pydantic type map. |
+| [test_fallback_json_parsing](file:///c:/HelioX/tests/test_composer.py#108-122) | Gracefully handles API failures/exceptions. |
+| [test_metadata_injection](file:///c:/HelioX/tests/test_composer.py#123-147) | Confirms SQO constraint metrics and conflict notes map deeply into output wrapper. |
+
+```
+============================== 4 passed in 1.11s ==============================
+```

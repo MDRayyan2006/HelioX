@@ -1,0 +1,33 @@
+{
+  "name": "projects/5113884478239678197",
+  "projectId": "5113884478239678197",
+  "title": "HelioX Dashboard",
+  "visibility": "PRIVATE",
+  "createTime": "2026-03-27T14:05:06.135228Z",
+  "updateTime": "2026-03-27T16:16:14.575633Z",
+  "projectType": "TEXT_TO_UI_PRO",
+  "origin": "STITCH",
+  "deviceType": "DESKTOP",
+  "designTheme": {
+    "colorMode": "DARK",
+    "font": "SPACE_GROTESK",
+    "roundness": "ROUND_FOUR",
+    "customColor": "#4f6ef7",
+    "headlineFont": "SPACE_GROTESK",
+    "bodyFont": "INTER",
+    "labelFont": "SPACE_GROTESK"
+  },
+  "screens": {
+    "react_bits": {
+      "id": "c138b1bdbc3e42819653943c373162c7",
+      "sourceScreen": "projects/5113884478239678197/screens/c138b1bdbc3e42819653943c373162c7",
+      "x": 1616,
+      "y": 3798,
+      "width": 1280,
+      "height": 4930
+    }
+  },
+  "metadata": {
+    "userRole": "OWNER"
+  }
+}

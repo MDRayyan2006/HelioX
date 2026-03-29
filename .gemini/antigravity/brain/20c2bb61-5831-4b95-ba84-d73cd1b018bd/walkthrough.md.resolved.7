@@ -1,0 +1,40 @@
+# Mode Controller — Walkthrough
+
+## What Was Built
+
+**Layer 2 — Mode Controller** per §2.3. Sits at the system orchestrator level and handles deciding whether an incoming query requires a full Heavy execution (multi-agent deliberation) or can take the fast path (Light execution).
+
+## Architecture
+
+The [ModeController](file:///c:/HelioX/orchestrator/mode_controller.py#17-82) provides two crucial orchestration gates:
+
+1. **Pre-flight Check ([select_initial_mode](file:///c:/HelioX/orchestrator/mode_controller.py#27-58))**
+   Evaluates the [QueryIntent](file:///c:/HelioX/query_pipeline/schemas.py#21-28) and the `ambiguity_detected` flag from the Analyzer. 
+   - [fact](file:///c:/HelioX/tests/test_retrieval_engine.py#549-551) → `LIGHT`
+   - `comparison`, [synthesis](file:///c:/HelioX/tests/test_adjudication.py#87-99), `compliance` → `HEAVY`
+   - [fact](file:///c:/HelioX/tests/test_retrieval_engine.py#549-551) + `ambiguity_detected=True` → `HEAVY`
+
+2. **Mid-flight Check ([should_escalate](file:///c:/HelioX/orchestrator/mode_controller.py#59-82))**
+   If a query begins in `LIGHT` mode but the synthesis confidence falls below the strict 0.70 threshold, the Orchestrator will call this method and receive `True`, forcing it to restart the query down the `HEAVY` pipeline path.
+
+## Files Created
+
+| File | Purpose |
+|------|---------|
+| [schemas.py](file:///c:/HelioX/orchestrator/schemas.py) | Defines the [ExecutionMode](file:///c:/HelioX/orchestrator/schemas.py#10-15) enum (`LIGHT`, `HEAVY`). |
+| [mode_controller.py](file:///c:/HelioX/orchestrator/mode_controller.py) | Main class exposing [select_initial_mode](file:///c:/HelioX/orchestrator/mode_controller.py#27-58) and [should_escalate](file:///c:/HelioX/orchestrator/mode_controller.py#59-82). |
+| [\_\_init\_\_.py](file:///c:/HelioX/orchestrator/__init__.py) | Package exports. |
+
+## Test Results
+
+**11/11 tests passing**.
+
+| Verification Step | Concept Covered |
+|-------------------|-----------------|
+| [test_intent_routing](file:///c:/HelioX/tests/test_mode_controller.py#18-37) | 4 parameterized tests mapping each [QueryIntent](file:///c:/HelioX/query_pipeline/schemas.py#21-28) to the correct [ExecutionMode](file:///c:/HelioX/orchestrator/schemas.py#10-15). |
+| [test_ambiguity_override](file:///c:/HelioX/tests/test_mode_controller.py#38-49) | Verifies that a base default `LIGHT` intent is aggressively overridden to `HEAVY` if ambiguity is flagged. |
+| [test_escalation_thresholds](file:///c:/HelioX/tests/test_mode_controller.py#50-68) | 6 strict boundary evaluations (e.g. `0.70` vs `0.69`) proving the mid-flight escalation triggers cleanly if confidence drops. |
+
+```
+============================= 11 passed in 0.16s ==============================
+```

@@ -1,0 +1,128 @@
+# Worker Agent Service — Implementation Plan
+
+Build **Layer 8 — Parallel Worker Agent Layer** per architecture blueprint §2.8. Each worker receives one chunk + SQO, extracts citation-bound claims, and returns structured output. Pool manages parallel execution, early stopping, and cost control.
+
+## Proposed Changes
+
+### Worker Schemas
+
+#### [NEW] [schemas.py](file:///c:/HelioX/workers/schemas.py)
+
+Pydantic DTOs matching §2.8 output contract:
+
+| Model | Purpose |
+|-------|---------|
+| `SupportingSpan` | `{start, end, text}` — exact quoted span from chunk |
+| `WorkerInput` | Input DTO: SQO + single ScoredChunk + token budget |
+| `WorkerOutput` | Output DTO: claim, supporting_spans, reasoning_trace, confidence_local, coverage_score, status |
+| `WorkerStatus` | Enum: `SUFFICIENT`, `INSUFFICIENT`, `ERROR` |
+| `PoolResult` | Aggregated output: all worker outputs, tokens used, early stop flag, timing |
+| `TokenUsage` | Per-worker token tracking (input, output, total) |
+
+---
+
+### Worker Prompts
+
+#### [NEW] [prompts.py](file:///c:/HelioX/workers/prompts.py)
+
+LLM prompt templates enforcing the citation-only contract:
+
+- **System prompt**: "You are an evidence extraction agent. You may ONLY cite the provided chunk. No external knowledge. Every claim must include exact span indices. If evidence is insufficient, return INSUFFICIENT."
+- **User prompt**: Injects the SQO (original_query, fact_components, entities) and the full chunk text with span indices.
+- **Output format instructions**: JSON schema matching `WorkerOutput`.
+
+---
+
+### Single Worker Logic
+
+#### [NEW] [worker.py](file:///c:/HelioX/workers/worker.py)
+
+`ChunkWorker` class implementing single-chunk analysis:
+
+- `async process(input: WorkerInput) → WorkerOutput`
+- Calls `google.genai` with the system+user prompt
+- Parses structured JSON output from LLM response
+- Validates that all cited span indices exist within chunk text
+- Computes `coverage_score`: fraction of SQO fact_components addressed
+- Returns `INSUFFICIENT` if no valid claims can be extracted
+- Tracks token usage (input + output) for cost control
+- Timeout: individual worker bounded by pool-level timeout
+
+Uses `ingestion.config.settings` for `gemini_api_key` and `generation_model`.
+
+---
+
+### Worker Pool Manager
+
+#### [NEW] [pool.py](file:///c:/HelioX/workers/pool.py)
+
+`WorkerPool` class managing parallel execution:
+
+```python
+class WorkerPool:
+    async def execute(
+        self,
+        sqo: StructuredQueryObject,
+        chunks: list[ScoredChunk],
+        token_budget: int = 19_200,
+    ) -> PoolResult:
+```
+
+Key behaviors:
+- **Parallel dispatch**: `asyncio.gather` with per-task wrappers
+- **Token budget**: 19,200 total (§9.1), divided as `budget_per_worker = token_budget // len(chunks)`
+- **Early stopping**: after each worker completes, check aggregate confidence; if ≥ 0.90, cancel remaining (§7.2)
+- **Retry**: 1 retry on worker failure, re-dispatch to same chunk (§8.2)
+- **Timeout**: 15,000 ms pool-level soft wall (§8.5); partial results on timeout
+- **Max workers**: bounded by `MAX_WORKERS_PER_QUERY = 12` (§2.2)
+- Returns `PoolResult` with all outputs, total tokens, early stop flag
+
+---
+
+### Package Init
+
+#### [NEW] [\_\_init\_\_.py](file:///c:/HelioX/workers/__init__.py)
+
+Package init exposing `WorkerPool`, `ChunkWorker`, and key schemas.
+
+---
+
+### Project Configuration
+
+#### [MODIFY] [pyproject.toml](file:///c:/HelioX/pyproject.toml)
+
+Add `"workers*"` to `[tool.setuptools.packages.find].include`.
+
+---
+
+## Verification Plan
+
+### Automated Tests
+
+#### [NEW] [test_workers.py](file:///c:/HelioX/tests/test_workers.py)
+
+Unit tests with mocked LLM client (no real Gemini API calls):
+
+| Test | What it verifies |
+|------|-----------------|
+| `test_worker_output_schema` | Schema validates correctly |
+| `test_worker_sufficient_claim` | Worker extracts claim with valid spans |
+| `test_worker_insufficient_evidence` | Returns INSUFFICIENT when chunk irrelevant |
+| `test_worker_span_validation` | Rejects spans outside chunk boundaries |
+| `test_worker_coverage_score` | coverage_score proportional to fact_components hit |
+| `test_pool_parallel_execution` | All workers run concurrently |
+| `test_pool_early_stopping` | Cancels remaining when confidence ≥ 0.90 |
+| `test_pool_token_budget_split` | Budget divided evenly across workers |
+| `test_pool_retry_on_failure` | Failed worker retried once |
+| `test_pool_timeout_partial_results` | Returns partial results on timeout |
+| `test_pool_max_workers_cap` | Never dispatches > 12 workers |
+| `test_pool_empty_chunks` | Graceful handling of no chunks |
+| `test_pool_result_aggregation` | PoolResult aggregates all outputs + metrics |
+
+All tests print worker outputs with claims, spans, and confidence.
+
+**Run command:**
+```
+cd c:\HelioX
+python -m pytest tests/test_workers.py -v -s
+```

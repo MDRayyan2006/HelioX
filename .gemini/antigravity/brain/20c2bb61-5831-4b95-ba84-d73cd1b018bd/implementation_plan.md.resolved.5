@@ -1,0 +1,63 @@
+# Confidence Engine — Implementation Plan
+
+Build **Layer 12 — Confidence & Self-Validation Engine** per §2.12. This engine computes a global confidence score using a weighted mean formula and triggers specific system actions (deliver, warn, expand, or clarify) based on strict thresholds.
+
+## Proposed Changes
+
+### Schemas
+
+#### [NEW] [schemas.py](file:///c:/HelioX/confidence/schemas.py)
+
+| Model | Purpose |
+|-------|---------|
+| `ConfidenceAction` (Enum) | Maps to decision thresholds: `DELIVER`, `DELIVER_WITH_WARNING`, `EXPAND_RETRIEVAL`, `REQUEST_CLARIFICATION`. |
+| `ConfidenceWeights` | The expected calibration vectors: [coverage](file:///c:/HelioX/retrieval/dynamic_k.py#24-52) (0.20), [citation_density](file:///c:/HelioX/tests/test_adjudication.py#214-221) (0.20), `worker_agreement` (0.20), `conflict_severity` (0.15), [authority_score](file:///c:/HelioX/adjudication/authority.py#39-107) (0.15), `avg_cosine_similarity` (0.10). |
+| `ConfidenceEvaluation` | Output schema: `global_confidence`, `action`, `sub_scores` (dictionary for debugging), `is_calibrated` flag. |
+
+---
+
+### Compute Logic
+
+#### [NEW] [engine.py](file:///c:/HelioX/confidence/engine.py)
+
+- `ConfidenceEngine.evaluate_confidence(...)`:
+  Takes in all required metrics:
+  - `retrieval_coverage` (from Synthesis/Adjudication)
+  - [citation_density](file:///c:/HelioX/tests/test_adjudication.py#214-221) (from Adjudication)  
+  - `worker_agreement` (from Adjudication consensus)
+  - `conflict_severity` (from Adjudication conflict log) — **Note: Inverted** (1.0 - severity) so lower severity yields higher score.
+  - [authority_score](file:///c:/HelioX/adjudication/authority.py#39-107) (from Adjudication)
+  - `avg_cosine_similarity` (from Retrieval/Adjudication)
+  
+  **Computes `global_confidence` using `ConfidenceWeights`.**
+
+  Applies decision boundaries:
+  - `≥ 0.80` → `DELIVER`
+  - `0.60 – 0.79` → `DELIVER_WITH_WARNING`
+  - `0.40 – 0.59` → `EXPAND_RETRIEVAL`
+  - `< 0.40` → `REQUEST_CLARIFICATION`
+
+---
+
+### Package & config
+
+#### [NEW] [\_\_init\_\_.py](file:///c:/HelioX/confidence/__init__.py)
+
+#### [MODIFY] [pyproject.toml](file:///c:/HelioX/pyproject.toml)
+
+Add `"confidence*"` to `tool.setuptools.packages.find.include`.
+
+---
+
+## Verification Plan
+
+### Automated Tests
+
+#### [NEW] [test_confidence.py](file:///c:/HelioX/tests/test_confidence.py)
+
+| Test Concept | Verifies |
+|------|----------|
+| `test_global_confidence_calculation` | Ensures the 6 factors are weighted precisely to 2 decimal places. |
+| `test_inverted_conflict_severity` | Ensures high severity negatively impacts the score, while 0 severity yields max impact. |
+| `test_decision_thresholds` | Parameterized test hitting all 4 boundary buckets to yield correct `ConfidenceAction`. |
+| `test_missing_metrics_fallback` | Ensures missing optional metrics are handled gracefully (default 0 or median). |

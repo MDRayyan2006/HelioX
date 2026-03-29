@@ -1,0 +1,20 @@
+# Adjudication Engine — Task Tracker
+
+## Planning
+- [x] Research blueprint §2.10
+- [x] Review synthesis schemas (MergedClaim, ConflictCandidate)
+- [/] Write implementation plan
+- [ ] User approval
+
+## Implementation
+- [ ] Create `adjudication/__init__.py`
+- [ ] Create `adjudication/schemas.py` — ConflictResolution, AdjudicationResult, ConflictLog
+- [ ] Create `adjudication/contradiction.py` — semantic contradiction scoring (≤ 0.30 threshold)
+- [ ] Create `adjudication/authority.py` — weighted authority formula
+- [ ] Create `adjudication/consensus.py` — cross-worker agreement scoring
+- [ ] Create `adjudication/engine.py` — orchestrator with re-verification loop (max 2 rounds)
+- [ ] Update [pyproject.toml](file:///c:/HelioX/pyproject.toml)
+
+## Verification
+- [ ] Create `tests/test_adjudication.py`
+- [ ] Run tests and verify all pass

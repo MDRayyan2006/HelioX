@@ -1,0 +1,15 @@
+# Task Plan: Test HelioX React UI
+
+- [x] Navigate to http://localhost:5173
+- [x] Type "What is HelioX?" into the Query Input box
+- [x] Click "Submit/Send"
+- [x] Wait for processing (10-20s)
+- [!] Verify AnswerCard (Answer text, Confidence, Citations) - *CRASHED! AnswerCard component threw an error.*
+- [ ] Click Evidence toggle (if available)
+- [ ] Record findings
+
+**Findings:**
+- The UI crashed upon receiving/rendering the answer.
+- Console error: `An error occurred in the <AnswerCard> component.`
+- Likely due to missing `key` prop in a list within AnswerCard or invalid data from backend.
+- Retrying once after page reload to see if it's consistent.

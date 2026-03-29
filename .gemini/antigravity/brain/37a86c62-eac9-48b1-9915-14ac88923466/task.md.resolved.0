@@ -1,0 +1,5 @@
+# Fix: show_data.py Unable to Display Output
+
+- [ ] Fix [show_data.py](file:///c:/HelioX/show_data.py) — add connection timeouts and proper error handling for Redis and Elasticsearch
+- [ ] Add PostgreSQL data display section to [show_data.py](file:///c:/HelioX/show_data.py) (the only service that actually runs locally)
+- [ ] Verify the fix by running [show_data.py](file:///c:/HelioX/show_data.py)

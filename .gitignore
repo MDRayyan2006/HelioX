@@ -1,0 +1,53 @@
+# Environment variables
+.env
+.env.local
+*.env
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+pip-log.txt
+pip-delete-this-directory.txt
+.tox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.log
+.venv
+.pytest_cache
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Project specific
+data/
+models/
+*.db
+*.sqlite
+
+# Runtime memory persistence
+memory_store.json
+
+# Telemetry logs
+logs/
+telemetry.jsonl
+
+# Credentials and secrets
+secrets/
+credentials.json
+*.key
+*.pem
+node_modules

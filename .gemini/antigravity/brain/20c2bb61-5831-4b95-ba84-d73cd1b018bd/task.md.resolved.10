@@ -1,0 +1,17 @@
+# Evidence-Bound Answer Composer — Task Tracker
+
+## Planning
+- [x] Research blueprint §2.11
+- [x] Write implementation plan
+- [x] User approval
+
+## Implementation
+- [x] Create [composer/__init__.py](file:///c:/HelioX/composer/__init__.py)
+- [x] Create [composer/schemas.py](file:///c:/HelioX/composer/schemas.py) — ComputedCitation, AnswerMetadata, FinalAnswer
+- [x] Create [composer/prompts.py](file:///c:/HelioX/composer/prompts.py) — system prompt with strict citation and constraint rules
+- [x] Create [composer/generator.py](file:///c:/HelioX/composer/generator.py) — [AnswerComposer](file:///c:/HelioX/composer/generator.py#32-161) connecting to LLM, formatting input, building output
+- [x] Update [pyproject.toml](file:///c:/HelioX/pyproject.toml)
+
+## Verification
+- [x] Create [tests/test_composer.py](file:///c:/HelioX/tests/test_composer.py) — parsing, constraint formatting, insufficient coverage override
+- [x] Run tests and verify all pass ✓

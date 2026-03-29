@@ -1,0 +1,10 @@
+# Task: Verify HelioX Frontend
+
+## Plan
+- [ ] Navigate to http://localhost:5173
+- [ ] Reload if blank
+- [ ] Type "What is HelioX?" and click Send
+- [ ] Wait for query to resolve
+- [ ] Take screenshot of AnswerCard
+- [ ] Click "Supporting Evidence" (if exists) and take screenshot
+- [ ] Confirm UI success

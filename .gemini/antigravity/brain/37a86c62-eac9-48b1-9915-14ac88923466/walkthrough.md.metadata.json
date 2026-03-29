@@ -1,0 +1,6 @@
+{
+  "artifactType":  "ARTIFACT_TYPE_WALKTHROUGH",
+  "summary":  "Updated the walkthrough detailing how the frontend was connected to a new Python FastAPI backend server to resolve mock incorrect answers.",
+  "updatedAt":  "2026-03-09T14:35:17.763439100Z",
+  "version":  "3"
+}

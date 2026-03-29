@@ -1,0 +1,50 @@
+# Mode Controller — Implementation Plan
+
+Build **Layer 2 — Mode Controller** per blueprint §2.3. Dictates whether the pipeline executes in a streamlined `LIGHT` mode (single-pass retrieval and synthesis without multi-agent adjudication) or `HEAVY` mode (full multi-agent deliberation).
+
+## Proposed Changes
+
+### Schemas
+
+#### [NEW] [schemas.py](file:///c:/HelioX/orchestrator/schemas.py)
+
+| Model | Purpose |
+|-------|---------|
+| `ExecutionMode` (Enum) | `LIGHT` or `HEAVY`. |
+| `ModeSelection` | Output schema for initial mode analysis, containing `selected_mode` and a `reasoning` string for logs. |
+
+### Engine Logic
+
+#### [NEW] [mode_controller.py](file:///c:/HelioX/orchestrator/mode_controller.py)
+
+- `ModeController`:
+  - `select_initial_mode(intent: str, ambiguity_detected: bool) -> ModeSelection`:
+    - Checks intent: if `compare`, [synthesis](file:///c:/HelioX/tests/test_adjudication.py#87-99), or `compliance` → `HEAVY`
+    - Checks ambiguity: if `True` → `HEAVY`
+    - Else (e.g. [fact](file:///c:/HelioX/tests/test_retrieval_engine.py#549-551), simple lookup) → `LIGHT`
+  - `evaluate_escalation(light_mode_confidence: float, threshold: float = 0.70) -> bool`:
+    - Checks if the mid-flight response from Light Mode falls below confidence boundaries. If `light_mode_confidence < threshold`, signals an escalation request which forces a restart in `HEAVY` mode.
+
+---
+
+### Package & config
+
+#### [NEW] [\_\_init\_\_.py](file:///c:/HelioX/orchestrator/__init__.py)
+
+#### [MODIFY] [pyproject.toml](file:///c:/HelioX/pyproject.toml)
+
+Add `"orchestrator*"` to `tool.setuptools.packages.find.include`.
+
+---
+
+## Verification Plan
+
+### Automated Tests
+
+#### [NEW] [test_mode_controller.py](file:///c:/HelioX/tests/test_mode_controller.py)
+
+| Test Concept | Verifies |
+|------|----------|
+| `test_intent_routing` | Intent values `compare`, [synthesis](file:///c:/HelioX/tests/test_adjudication.py#87-99), `compliance` route to `HEAVY`, while [fact](file:///c:/HelioX/tests/test_retrieval_engine.py#549-551) routes to `LIGHT`. |
+| `test_ambiguity_override` | Intent [fact](file:///c:/HelioX/tests/test_retrieval_engine.py#549-551) but `ambiguity_detected=True` returns `HEAVY`. |
+| `test_escalation_thresholds` | `evaluate_escalation` returns `True` if confidence is `< 0.70` and `False` if `≥ 0.70`. |

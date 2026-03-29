@@ -1,0 +1,98 @@
+# Cross-Chunk Synthesizer — Implementation Plan
+
+Build **Layer 9 — Cross-Chunk Synthesizer** per §2.9. Takes worker outputs, deduplicates claims, merges complementary evidence, detects contradictions, and builds a structured evidence graph with global coverage scoring.
+
+## Proposed Changes
+
+### Synthesis Schemas
+
+#### [NEW] [schemas.py](file:///c:/HelioX/synthesis/schemas.py)
+
+| Model | Purpose |
+|-------|---------|
+| `MergedClaim` | Deduplicated claim with combined spans from multiple workers |
+| `ConflictCandidate` | Pair of opposing claims with similarity score |
+| `EvidenceNode` | Node in the evidence graph: claim → spans → chunk_ids |
+| `EvidenceEdge` | Edge connecting related/conflicting nodes |
+| `EvidenceGraph` | Full graph structure: nodes + edges |
+| `SynthesisResult` | Final output: merged claims, conflict candidates, evidence graph, global coverage |
+
+---
+
+### Claim Deduplication
+
+#### [NEW] [dedup.py](file:///c:/HelioX/synthesis/dedup.py)
+
+- Pairwise keyword-based similarity between claims (token overlap / Jaccard)
+- Threshold: similarity > 0.92 → merge into single `MergedClaim`
+- Merging combines supporting spans and takes max confidence
+- Non-duplicate claims pass through individually
+
+---
+
+### Contradiction Detection
+
+#### [NEW] [conflict_detector.py](file:///c:/HelioX/synthesis/conflict_detector.py)
+
+- Identify semantically opposing claims via negation and antonym detection
+- Keyword-level opposition signals (not, never, no, however, contrary)
+- Low overlap + negation markers → flag as `ConflictCandidate`
+- Output: list of conflict pairs for downstream adjudication
+
+---
+
+### Evidence Graph
+
+#### [NEW] [evidence_graph.py](file:///c:/HelioX/synthesis/evidence_graph.py)
+
+- Each `MergedClaim` → `EvidenceNode` with claim text, spans, source chunks
+- Edges: `supports` (complementary), `conflicts` (contradiction), `overlaps` (deduplicated)
+- Global coverage: fraction of SQO fact_components covered by evidence nodes
+
+---
+
+### Orchestrator
+
+#### [NEW] [synthesizer.py](file:///c:/HelioX/synthesis/synthesizer.py)
+
+`CrossChunkSynthesizer.synthesize(worker_outputs, sqo)`:
+
+1. Filter to SUFFICIENT outputs only
+2. Deduplicate claims → `MergedClaim` list
+3. Merge complementary claims (non-overlapping claims addressing different fact components)
+4. Detect contradiction candidates
+5. Build evidence graph
+6. Compute global coverage score
+7. Return `SynthesisResult`
+
+---
+
+### Package & Config
+
+#### [NEW] [\_\_init\_\_.py](file:///c:/HelioX/synthesis/__init__.py)
+
+#### [MODIFY] [pyproject.toml](file:///c:/HelioX/pyproject.toml)
+
+Add `"synthesis*"` to find include.
+
+---
+
+## Verification Plan
+
+### Automated Tests
+
+#### [NEW] [test_synthesis.py](file:///c:/HelioX/tests/test_synthesis.py)
+
+| Test | Verifies |
+|------|----------|
+| `test_dedup_exact_duplicate` | Identical claims merge |
+| `test_dedup_near_duplicate` | High-similarity claims merge |
+| `test_dedup_distinct_claims` | Distinct claims stay separate |
+| `test_conflict_detection` | Opposing claims flagged |
+| `test_no_false_conflicts` | Non-opposing claims not flagged |
+| `test_evidence_graph_construction` | Nodes + edges built correctly |
+| `test_global_coverage_full` | All fact_components covered → 1.0 |
+| `test_global_coverage_partial` | Some covered → proportional |
+| `test_synthesizer_end_to_end` | Full pipeline produces valid SynthesisResult |
+| `test_synthesizer_empty_inputs` | Handles no sufficient workers |
+| `test_complementary_merge` | Non-overlapping claims merge into groups |

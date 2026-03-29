@@ -1,0 +1,18 @@
+# Build Query Validation Agent
+
+## Planning
+- [x] Review architecture blueprint §2.6 + existing validator stub
+- [x] Write implementation plan
+- [x] Get user approval on plan
+
+## Implementation
+- [/] Add new schemas to [query_pipeline/schemas.py](file:///c:/HelioX/query_pipeline/schemas.py) (ValidationVerdict, SQOCorrectionAction)
+- [/] Create `query_pipeline/confidence_scorer.py` — decomposition confidence scoring
+- [ ] Replace [query_pipeline/validator.py](file:///c:/HelioX/query_pipeline/validator.py) with `query_pipeline/validation_agent.py`
+- [ ] Update [query_pipeline/analyzer.py](file:///c:/HelioX/query_pipeline/analyzer.py) — integrate validation agent + re-decompose loop
+- [ ] Update [query_pipeline/routes.py](file:///c:/HelioX/query_pipeline/routes.py) — expose validation detail in response
+
+## Verification
+- [ ] Create `tests/test_validation_agent.py`
+- [ ] Verify existing tests still pass
+- [ ] Run full test suite

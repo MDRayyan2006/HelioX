@@ -1,0 +1,4 @@
+# Task List
+- [ ] Connect to PostgreSQL database using python script.
+- [ ] Fetch data from tables and format output.
+- [ ] Show the retrieved data to the user.

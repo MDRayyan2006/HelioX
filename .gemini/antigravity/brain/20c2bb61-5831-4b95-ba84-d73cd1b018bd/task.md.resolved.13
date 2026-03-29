@@ -1,0 +1,17 @@
+# Session Memory — Task Tracker
+
+## Planning
+- [x] Research blueprint §2.13
+- [ ] Write implementation plan
+- [ ] User approval
+
+## Implementation
+- [ ] Create `memory/__init__.py`
+- [ ] Create `memory/schemas.py` — `SessionRecord`, `ValidatedInteraction`, `UserContext`
+- [ ] Create `memory/session_store.py` — `RedisSessionStore` handling read/write logic
+- [ ] Create `memory/lifecycle.py` — TTL management and cleanup triggers
+- [ ] Update [pyproject.toml](file:///c:/HelioX/pyproject.toml) to include `memory*`
+
+## Verification
+- [ ] Create `tests/test_memory.py` — Redis mock, TTL validation, strict exclusion of unverified data
+- [ ] Run tests and verify all pass

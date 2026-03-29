@@ -1,0 +1,55 @@
+# Session Memory — Implementation Plan
+
+Build **Layer 13 — Controlled Session Memory** per §2.13. Provides Redis-backed state for conversational RAG interactions with strict limits on stored data to maintain quality and prevent hallucination compounding.
+
+## Proposed Changes
+
+### Schemas
+
+#### [NEW] [schemas.py](file:///c:/HelioX/memory/schemas.py)
+
+| Model | Purpose |
+|-------|---------|
+| `MemoryInteraction` | Replaces raw traces with: `query_id`, `original_query`, [sqo](file:///c:/HelioX/tests/test_workers.py#48-63) (intent/constraints only), and the `final_answer`. |
+| `UserPreferences` | `format` (e.g., concise, detailed), `include_evidence`. |
+| `SessionRecord` | Contains `session_id`, list of `History` objects (`MemoryInteraction`), and `UserPreferences`. |
+
+### Engine & Storage
+
+#### [NEW] [session_store.py](file:///c:/HelioX/memory/session_store.py)
+
+- `RedisSessionStore(redis_url)`:
+  - `get_session(session_id) -> SessionRecord`
+  - `add_interaction(session_id, sqo, answer)`: Creates or updates the record. Explicitly guarantees we drop `worker_outputs`, `conflict_candidates`, and `reasoning_traces`.
+  - Uses `redis.asyncio`.
+
+#### [NEW] [lifecycle.py](file:///c:/HelioX/memory/lifecycle.py)
+
+- `SessionLifecycleManager`:
+  - `refresh_ttl(session_id)`: Bumps TTL to `30 minutes` (1800s) on every access.
+  - `close_session(session_id)`: Optional manual expiration.
+
+---
+
+### Package & config
+
+#### [NEW] [\_\_init\_\_.py](file:///c:/HelioX/memory/__init__.py)
+
+#### [MODIFY] [pyproject.toml](file:///c:/HelioX/pyproject.toml)
+
+Add `"memory*"` to `tool.setuptools.packages.find.include`. Install [redis](file:///c:/HelioX/profiling/clients.py#75-86) as a dependency if not already present.
+
+---
+
+## Verification Plan
+
+### Automated Tests
+
+#### [NEW] [test_memory.py](file:///c:/HelioX/tests/test_memory.py)
+
+| Test Concept | Verifies |
+|------|----------|
+| `test_add_interaction` | Calling `add_interaction` successfully builds a filtered `SessionRecord` minus garbage data. |
+| `test_redis_ttl_refresh` | Validates `EX=1800` is passed to the mocked Redis `set` call. |
+| `test_fetch_nonexistent_session` | Returns empty initial `SessionRecord`. |
+| `test_exclusion_of_unverified_data` | Attempts to inject `reasoning_trace` into the memory payload and verifies it is scrubbed before serialization. |

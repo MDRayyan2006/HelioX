@@ -1,0 +1,36 @@
+# Fix: [show_data.py](file:///c:/HelioX/show_data.py) Unable to Display Output
+
+## Root Cause
+
+[show_data.py](file:///c:/HelioX/show_data.py) hangs and errors because:
+
+1. **Redis** (localhost:6379) is not running — the connection blocks for ~30 seconds before failing with `Error 22 connecting to localhost:6379`.
+2. **Elasticsearch** (localhost:9200) is not running — connection also hangs/errors with an unclosed client session warning.
+3. Even if these services were running, [run_pipeline.py](file:///c:/HelioX/run_pipeline.py) uses **mocked** clients, so no real data is ever persisted to Redis or Elasticsearch.
+
+The script has **no connection timeouts**, so it appears to freeze before eventually printing errors with no useful data.
+
+## Proposed Changes
+
+### Data Visualization Script
+
+#### [MODIFY] [show_data.py](file:///c:/HelioX/show_data.py)
+
+1. **Add connection timeouts** to both Redis and Elasticsearch client fetches so the script doesn't hang for 30+ seconds.
+2. **Add a PostgreSQL section** — this is the service that actually runs locally and contains real ingested data (raw chunks from [run_pipeline.py](file:///c:/HelioX/run_pipeline.py) when run without mocks, or from the profiling persistence step). The other `show_*.py` scripts prove PG is the primary data store. We'll reuse the existing `profiling.clients.get_postgres_engine` and query the `raw_chunks` table.
+3. **Properly close the Elasticsearch client** to avoid the `Unclosed client session` warning.
+4. **Add `asyncio.wait_for` wrappers** with a 5-second timeout around each service connection attempt.
+
+No new libraries — `asyncio.wait_for` is stdlib, and we already import from `profiling.clients`.
+
+## Verification Plan
+
+### Automated Tests
+- Run `python show_data.py` from `c:\HelioX` and confirm:
+  - The script completes in < 15 seconds (no hanging)
+  - Redis/Elasticsearch sections show clear timeout error messages (not a blank hang)
+  - PostgreSQL section displays table data if PG is running, or a clean error if not
+  - No unclosed session warnings
+
+### Manual Verification
+- Visually check the terminal output shows all three sections with clear headers and error messages.

@@ -1,0 +1,21 @@
+# Tasks
+
+## Setup and Config
+- [ ] Add `elasticsearch_url` to [ingestion/config.py](file:///c:/HelioX/ingestion/config.py) and [.env](file:///c:/HelioX/.env).
+- [ ] Add `get_elasticsearch_client()` to [profiling/clients.py](file:///c:/HelioX/profiling/clients.py).
+
+## Data Models
+- [ ] Replace [ChunkProfile](file:///c:/HelioX/profiling/models.py#46-101) with `RawChunk` in [profiling/models.py](file:///c:/HelioX/profiling/models.py).
+
+## Pipeline Ingestion Updates
+- [ ] Update [run_pipeline.py](file:///C:/HelioX/run_pipeline.py) to persist text to `RawChunk` in Postgres.
+- [ ] Update [run_pipeline.py](file:///C:/HelioX/run_pipeline.py) to store chunk profiles + summaries in Redis.
+- [ ] Update [run_pipeline.py](file:///C:/HelioX/run_pipeline.py) to index chunks to Elasticsearch.
+- [ ] Update [run_pipeline.py](file:///C:/HelioX/run_pipeline.py) to upsert embeddings to Qdrant.
+
+## Retrieval Updates
+- [ ] Create `retrieval/elastic_search.py` for BM25 queries.
+- [ ] Refactor [retrieval/engine.py](file:///c:/HelioX/retrieval/engine.py) to execute Qdrant, ES, and Redis queries concurrently using `asyncio.gather`, pulling actual chunk texts from Postgres.
+
+## Testing
+- [ ] Test the pipeline via [run_pipeline.py](file:///C:/HelioX/run_pipeline.py).

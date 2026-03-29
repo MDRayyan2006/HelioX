@@ -1,0 +1,33 @@
+# Walkthrough: Configuring LLM Models per Pipeline Stage
+
+## Problem
+The user specified different LLM preferences for different stages of the HelioX RAG pipeline:
+1. **Profiling Stage**: Use Groq `llama-3.1-8b-instant` for efficiency.
+2. **Heavy Model Principal LLM**: Use Groq `llama-3.3-70b-versatile` for complex Adjudication and Synthesis.
+3. **Light Model Principal LLM**: Continue using `mistral-small-latest` for faster, simpler queries.
+
+## Changes Made
+
+### 1. Profiling Stage (`profiling/summary_generator.py` & `profiling/entity_extractor.py`)
+- Removed Mistral client initialization.
+- Imported `groq.AsyncGroq` using the provided profiling API key (`gsk_dx2VTSPA...`).
+- Configured the completions endpoint to use `llama-3.1-8b-instant`.
+- Preserved the asynchronous rate-limit handling logic (`tenacity` exponential backoff) created earlier.
+
+### 2. Principal LLMs (`adjudication/engine.py` & `composer/generator.py`)
+- Modified `__init__` to simultaneously load *both* the Mistral client (Light) and the Groq client (Heavy).
+- Updated the primary interface methods (`adjudicate` and `generate`) to accept an `ExecutionMode` argument (defaulting to `ExecutionMode.LIGHT`).
+- Shifted the LLM invocation logic to check the `mode` parameter at runtime:
+  - If `HEAVY`, the pipeline delegates to `self._groq_client.chat.completions.create` targeting `llama-3.3-70b-versatile`.
+  - If `LIGHT`, the pipeline uses the original `self._mistral_client` targeting `mistral-small-latest`.
+
+### 3. Orchestration Updates (`orchestrator/orchestrator.py` & `run_pipeline.py`)
+- Both the command-line local runner (`run_pipeline.py`) and the system orchestrator (`orchestrator.py`) were missing explicit property chaining for the new `mode` variable dynamically selected during Stage 3.
+- Injected `mode=mode` into `adjudicate()` and `generate()`.
+- Added missing `await` clauses to `adjudicate` and `generate` in the `orchestrator.py` script.
+
+## Verification
+- We executed the local test script (`python run_pipeline.py`) against `04OLAP.pdf`.
+- When tested with a challenging query ("what is OLAP and what are its components?"), the pipeline effectively classified the intent and escalated correctly.
+- Stage 0 profiling routed seamlessly through the 8B Groq model without rate limits.
+- The Adjudicator tiebreaker and ultimate Composer correctly activated the Heavy path, leveraging the 70B Versatile Groq API.

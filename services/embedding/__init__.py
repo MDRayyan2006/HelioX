@@ -1,0 +1,3 @@
+"""
+Embedding service package.
+"""

@@ -1,0 +1,38 @@
+# Goal Description
+The user wants to generate an LLM summary for every document chunk using the Gemini API and store this summary in the PostgreSQL `chunk_profiles` table during the ingestion and profiling phase.
+
+## Proposed Changes
+
+### Database Layer
+#### [MODIFY] [models.py](file:///c:/HelioX/profiling/models.py)
+- Add a new `summary` column of type `Text` (nullable=True) to the [ChunkProfile](file:///c:/HelioX/profiling/models.py#46-100) SQLAlchemy model.
+
+#### [MODIFY] [schemas.py](file:///c:/HelioX/profiling/schemas.py)
+- Add a `summary` field (type [str](file:///c:/HelioX/profiling/service.py#80-82), default `""`) to the [ChunkProfileResult](file:///c:/HelioX/profiling/schemas.py#50-82) Pydantic model.
+
+### Service Layer
+#### [NEW] [summary_generator.py](file:///c:/HelioX/profiling/summary_generator.py)
+- Create a new `SummaryGenerator` class.
+- Initialize the Google GenAI client (using `gemini-2.0-flash` from settings).
+- Implement a method `generate_summary_batch(texts: list[str]) -> list[str]` which takes a batch of chunk texts and uses the Gemini API to generate concise summaries concurrently.
+
+#### [MODIFY] [service.py](file:///c:/HelioX/profiling/service.py)
+- Import and initialize the new `SummaryGenerator`.
+- In [profile_document](file:///c:/HelioX/profiling/service.py#50-145), add a call to `generate_summary_batch` alongside the other concurrent extraction tasks (`asyncio.gather`).
+- Map the generated summaries to the [ChunkProfileResult](file:///c:/HelioX/profiling/schemas.py#50-82) and update [_insert_postgres](file:///c:/HelioX/profiling/service.py#222-259) to save the `summary` value when inserting into the database.
+
+### Integration / Viewer
+#### [MODIFY] [run_pipeline.py](file:///c:/HelioX/run_pipeline.py)
+- Update the mock profiling generation (Stage 0.5) to include a placeholder or mocked `summary` string so the script continues to function locally without breaking.
+
+#### [MODIFY] [show_chunks_terminal.py](file:///c:/HelioX/show_chunks_terminal.py)
+- Update the terminal viewer to query and display the new `summary` column straight from PostgreSQL instead of trying to reconstruct it from the raw ingestion text.
+
+## Verification Plan
+
+### Automated Tests
+- Run the full existing pipeline `python run_test_pdf.py` and `python run_pipeline.py` to ensure the new summary step doesn't break the ingestion flow.
+- The pipeline script runs the process locally, which will verify that the new DB column is written to correctly.
+
+### Manual Verification
+- After running the pipeline, execute `python show_chunks_terminal.py`. The terminal should successfully read from PostgreSQL and display the actual LLM-generated summaries next to their Chunk IDs.

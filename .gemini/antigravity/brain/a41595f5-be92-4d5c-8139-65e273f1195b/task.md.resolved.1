@@ -1,0 +1,24 @@
+# Build Query Analyzer Service
+
+## Planning
+- [x] Research existing codebase patterns (ingestion, profiling services)
+- [x] Write implementation plan
+- [x] Get user approval on plan
+
+## Implementation
+- [/] Create `query_pipeline/` package structure
+- [/] Create `query_pipeline/config.py` — service configuration
+- [ ] Create `query_pipeline/schemas.py` — SQO schema + DTOs
+- [ ] Create `query_pipeline/intent_classifier.py` — intent classification
+- [ ] Create `query_pipeline/entity_extractor.py` — query entity extraction
+- [ ] Create `query_pipeline/constraint_extractor.py` — constraint extraction
+- [ ] Create `query_pipeline/decomposer.py` — fact/reasoning decomposition
+- [ ] Create `query_pipeline/analyzer.py` — main analyzer orchestrator
+- [ ] Create `query_pipeline/validator.py` — SQO validation + locking
+- [ ] Create API route `query_pipeline/routes.py`
+- [ ] Update [pyproject.toml](file:///c:/HelioX/pyproject.toml) with package + dependencies
+- [ ] Update [.env.example](file:///c:/HelioX/.env.example) with new config vars
+
+## Verification
+- [ ] Create `tests/test_query_analyzer.py`
+- [ ] Run tests and verify all pass

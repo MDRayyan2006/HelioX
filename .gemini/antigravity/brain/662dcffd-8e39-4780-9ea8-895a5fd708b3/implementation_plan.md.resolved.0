@@ -1,0 +1,62 @@
+# HelioX React Frontend Implementation Plan
+
+## Goal Description
+The objective is to build a premium, enterprise-grade React web interface for the HelioX RAG 3.0 system. The UI must allow users (e.g., compliance analysts, legal researchers) to submit queries, view evidence-bound answers with confidence scores, and see the reasoning trace. The design must be visually stunning, utilizing Tailwind CSS, modern typography, dark mode aesthetics, and micro-animations to convey trust and advanced capabilities.
+
+## User Review Required
+> [!IMPORTANT]
+> - Do you have any specific branding colors or a preferred logo for HelioX that should be incorporated?
+> - The backend API is currently in [run_pipeline.py](file:///c:/HelioX/run_pipeline.py). To connect the frontend, we need a running API server (e.g., FastAPI). Since this task is to "make a website", I will build the React frontend to run standalone initially, mocking the backend response, or expecting a local API at a specific port. Do you want me to also build a basic FastAPI wrapper for the backend as part of this, or just focus strictly on the React/Tailwind frontend assuming an API will be provided later?
+
+## Proposed Changes
+
+### Setup and Configuration
+- **Tailwind CSS**: Will be used extensively for styling. We will customize the theme with a rich, dark-mode-first color palette (slate, indigo, emerald for confidence).
+- **Lucide React**: Already in [package.json](file:///c:/HelioX/frontend/package.json), will be used for high-quality iconography.
+
+### Component Architecture
+
+#### [src/index.css](file:///c:/HelioX/frontend/src/index.css) (MODIFY)
+- Replace default Vite styles with Tailwind directives and custom CSS variables for our premium theme. Add utility classes for glassmorphism and animations.
+
+#### [src/App.tsx](file:///c:/HelioX/frontend/src/App.tsx) (MODIFY)
+- Replace the default Vite template with the main application layout.
+- Implement state to hold the conversation history and current query status.
+
+#### `src/components/MainLayout.tsx` (NEW)
+- A shell component containing a sidebar (for history/settings) and the main chat area.
+
+#### `src/components/QueryInput.tsx` (NEW)
+- A large, prominent text area for inputting queries.
+- Includes a toggle for Light/Heavy mode (as defined in PRD FR-5).
+- Submit button with loading state.
+
+#### `src/components/AnswerCard.tsx` (NEW)
+- The core display component for a system response.
+- **Sections**:
+  - Main answer text.
+  - Confidence Score badge (Color-coded based on thresholds: ≥ 0.80 Green, 0.60–0.79 Yellow, < 0.60 Red).
+  - Expandable "Evidence/Citations" section showing specific chunks.
+  - Expandable "Pipeline Status" to show what steps the system took (Query Analysis, Retrieval, Workers, Synthesis).
+
+#### `src/components/ThinkingIndicator.tsx` (NEW)
+- A visual indicator showing progress when a query is submitted, especially for Heavy Mode which might take up to 20-30 seconds.
+
+### API Integration Services
+#### `src/services/api.ts` (NEW)
+- Functions to communicate with the HelioX backend.
+- Initially, we can stub this out with mock data that matches the `StructuredQueryObject` and `Answer` schemas defined in [architecture_blueprint.md](file:///c:/HelioX/architecture_blueprint.md), allowing us to develop the UI independently of the backend being fully wired up to an HTTP server.
+
+## Verification Plan
+
+### Automated Tests
+- Currently, no frontend testing frameworks (like Jest, Vitest, or React Testing Library) are set up. We will rely on manual verification and visual inspection via the dev server.
+- If required, we can add `vitest` for component testing.
+
+### Manual Verification
+1. Run `npm run dev` in the `frontend` directory.
+2. Open the browser to the provided localhost URL.
+3. Visually inspect the overall layout against the "Premium Aesthetic" requirement.
+4. Interact with the `QueryInput` component to ensure it accepts text and triggers a loading state.
+5. Verify that the mocked `AnswerCard` correctly displays the answer, confidence variations, and expand/collapse behavior for evidence.
+6. Test responsiveness by resizing the browser window (mobile, tablet, desktop views).

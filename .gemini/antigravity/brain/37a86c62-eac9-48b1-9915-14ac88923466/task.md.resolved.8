@@ -1,0 +1,7 @@
+# Fixing Mistral API Rate Limits
+
+- [/] Investigate `summary_generator.py` for API concurrency
+- [/] Investigate `pool.py` (Worker Pool) for API concurrency
+- [/] Implement exponential backoff / retry logic for Mistral API calls
+- [/] Implement concurrency limiting (e.g. `asyncio.Semaphore`) to avoid hitting 429s
+- [ ] Run [run_pipeline.py](file:///c:/HelioX/run_pipeline.py) with [04OLAP.pdf](file:///c:/HelioX/04OLAP.pdf) to verify no more 429s

@@ -1,0 +1,78 @@
+# Hybrid Retrieval Engine — Walkthrough
+
+## What Was Built
+
+The **Layer 7 — Hybrid Retrieval Engine** for HelioX RAG 3.0, implementing a 4-stage retrieval cascade per architecture blueprint §2.7.
+
+## Architecture
+
+```mermaid
+graph TD
+    SQO["Locked SQO"] --> S1["Stage 1: Metadata Filter<br/>(PostgreSQL)"]
+    S1 --> S2["Stage 2: Entity Overlap<br/>(In-Memory)"]
+    S2 --> S3["Stage 3: Vector Search<br/>(Qdrant)"]
+    S3 --> SCORE["Score & Rank"]
+    SCORE --> CHECK{"recall < 0.60?"}
+    CHECK -->|Yes| S4["Stage 4: Fallback<br/>(Broad Search)"]
+    S4 --> SCORE
+    CHECK -->|No| DK["Dynamic K<br/>(Coverage Gain)"]
+    DK --> CONF["Confidence<br/>Estimation"]
+    CONF --> RESULT["RetrievalResult"]
+```
+
+## Files Created
+
+| File | Purpose |
+|------|---------|
+| [config.py](file:///c:/HelioX/retrieval/config.py) | All tuning knobs (scoring weights, blend weights, dynamic K params) |
+| [schemas.py](file:///c:/HelioX/retrieval/schemas.py) | DTOs: [ScoredChunk](file:///c:/HelioX/retrieval/schemas.py#36-63), [ScoreBreakdown](file:///c:/HelioX/retrieval/schemas.py#20-29), [RetrievalResult](file:///c:/HelioX/retrieval/schemas.py#117-130), [RetrievalConfidence](file:///c:/HelioX/retrieval/schemas.py#84-92) |
+| [scoring.py](file:///c:/HelioX/retrieval/scoring.py) | Recency decay, query coverage, weighted score formula |
+| [metadata_filter.py](file:///c:/HelioX/retrieval/metadata_filter.py) | Stage 1: PostgreSQL temporal/geographic/authority filtering |
+| [entity_filter.py](file:///c:/HelioX/retrieval/entity_filter.py) | Stage 2: Case-insensitive entity overlap ≥ threshold |
+| [vector_search.py](file:///c:/HelioX/retrieval/vector_search.py) | Stage 3: Multi-vector blend (α·semantic + β·entity + γ·HyDE) |
+| [fallback.py](file:///c:/HelioX/retrieval/fallback.py) | Stage 4: Broad retrieval when recall < 0.60 |
+| [dynamic_k.py](file:///c:/HelioX/retrieval/dynamic_k.py) | Coverage-gain stopping: initial 25 → final K ∈ [5, 12] |
+| [engine.py](file:///c:/HelioX/retrieval/engine.py) | Main orchestrator coordinating all stages |
+| [__init__.py](file:///c:/HelioX/retrieval/__init__.py) | Package exports |
+
+## Scoring Formula
+
+```
+weighted_score =
+    0.10 × recency          (exponential decay, half-life 180d)
+  + 0.15 × source_rank      (authority_score from profiling)
+  + 0.10 × citation_density  (0 on first pass)
+  + 0.10 × worker_confidence (0 on first pass)
+  + 0.35 × cosine_similarity (blended multi-vector)
+  + 0.20 × query_coverage   (entity overlap + keyword match)
+```
+
+## Confidence Estimation
+
+```
+retrieval_confidence =
+    0.30 × recall_estimate
+  + 0.30 × avg_cosine_similarity
+  + 0.25 × query_coverage
+  + 0.15 × candidate_diversity
+```
+
+## Test Results
+
+**29/29 tests passing** in 0.43s — all external dependencies mocked.
+
+| Test Group | Count | Coverage |
+|------------|-------|----------|
+| Config validation | 3 | Weights sum to 1.0 |
+| Recency scoring | 4 | Recent, old, half-life, null |
+| Query coverage | 4 | Full, partial, none, empty |
+| Weighted scoring | 3 | Formula, zeros, perfect |
+| Ranking | 1 | Descending sort |
+| Entity filter | 3 | Overlap, no overlap, empty |
+| Dynamic K | 5 | Plateau, min clamp, max clamp, empty, coverage |
+| Fallback | 3 | Triggered, skipped, bounded |
+| Full pipeline | 3 | End-to-end, empty corpus, confidence |
+
+```
+============================= 29 passed in 0.43s ==============================
+```

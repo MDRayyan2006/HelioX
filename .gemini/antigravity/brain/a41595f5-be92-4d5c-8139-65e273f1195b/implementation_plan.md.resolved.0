@@ -1,0 +1,179 @@
+# Query Analyzer Service — Implementation Plan
+
+Build the Layer 5 Structured Query Analyzer from the HelioX architecture (FR-3.1 through FR-3.8). The service classifies query intent, extracts entities and constraints, decomposes queries into fact vs reasoning components, validates decomposition quality, and produces a locked Structured Query Object (SQO).
+
+## Proposed Changes
+
+### Query Pipeline Package
+
+New `query_pipeline/` package follows the same patterns as existing [profiling/](file:///c:/HelioX/tests/test_profiling_service.py#240-249) and `ingestion/` services.
+
+---
+
+#### [NEW] [__init__.py](file:///c:/HelioX/query_pipeline/__init__.py)
+
+Empty init to register package.
+
+---
+
+#### [NEW] [config.py](file:///c:/HelioX/query_pipeline/config.py)
+
+Service-level settings following [ingestion/config.py](file:///c:/HelioX/ingestion/config.py) pattern:
+- `gemini_api_key`, `generation_model` — LLM for intent classification + decomposition
+- `decomposition_confidence_threshold` — 0.65 default (FR-3.7)
+- `max_decomposition_retries` — 1 (FR-3.7)
+- `query_analysis_timeout_ms` — 2000 (per architecture latency budget)
+
+---
+
+#### [NEW] [schemas.py](file:///c:/HelioX/query_pipeline/schemas.py)
+
+Core SQO and supporting DTOs:
+
+| Schema | Description |
+|--------|-------------|
+| `QueryIntent` | Enum: `fact`, `comparison`, `synthesis`, `compliance` |
+| `TemporalConstraint` | `after: Optional[str]`, `before: Optional[str]` |
+| `QueryConstraints` | temporal, geographic, regulatory, scope |
+| `StructuredQueryObject` | Full SQO: query_id, original_query, intent, entities, constraints, fact_components, reasoning_components, decomposition_confidence, ambiguity_warnings, ungrounded_entities, locked |
+| `QueryAnalysisRequest` | API input: `query: str`, `session_context: Optional[dict]` |
+| `QueryAnalysisResponse` | API output wrapping the SQO + metadata |
+| `ValidationWarning` | code + message for validation issues |
+
+SQO schema matches the architecture blueprint JSON spec exactly.
+
+---
+
+#### [NEW] [intent_classifier.py](file:///c:/HelioX/query_pipeline/intent_classifier.py)
+
+Rule-based intent classifier (deterministic, no LLM needed for MVP):
+
+| Intent | Heuristic Signals |
+|--------|-------------------|
+| `fact` | Keyword starts: "what is", "define", "when did", "how many", single entity |
+| `comparison` | "compare", "vs", "versus", "difference between", "better than" |
+| `synthesis` | "summarize", "overview", "synthesize", multi-entity, "top N" |
+| `compliance` | "comply", "regulation", "policy", "GDPR", "SOX", regulatory entity detected |
+
+Falls back to `fact` if no pattern matches. Returns confidence score based on signal strength.
+
+---
+
+#### [NEW] [entity_extractor.py](file:///c:/HelioX/query_pipeline/entity_extractor.py)
+
+Query-focused entity extraction. Reuses regex patterns from [profiling/entity_extractor.py](file:///c:/HelioX/profiling/entity_extractor.py) but tuned for shorter query text:
+- Proper nouns, acronyms, regulatory identifiers, dates
+- Returns `QueryEntities` dataclass with entities list + categories
+- Simpler than chunk-level extraction (queries are much shorter)
+
+---
+
+#### [NEW] [constraint_extractor.py](file:///c:/HelioX/query_pipeline/constraint_extractor.py)
+
+Extracts constraint filters from query text (matching the 4 dimensions from FR-3.3):
+- **Temporal**: "after 2024", "since Q3", "before January", date ranges
+- **Geographic**: "EU", "United States", "Asia-Pacific", country/region detection
+- **Regulatory**: "under GDPR", "per SOX", regulation references
+- **Scope**: "section-level", "document-wide", "paragraph" scope hints
+
+Reuses patterns from [profiling/metadata_extractor.py](file:///c:/HelioX/profiling/metadata_extractor.py) adapted for query context.
+
+---
+
+#### [NEW] [decomposer.py](file:///c:/HelioX/query_pipeline/decomposer.py)
+
+Separates query into fact components vs reasoning components using Gemini LLM:
+- **Fact components**: Sub-questions that need direct evidence retrieval
+- **Reasoning components**: Higher-order tasks (compare, synthesize, assess compliance)
+- Returns list of each plus a decomposition confidence score
+- If confidence < 0.65 → retry once with refined prompt (FR-3.7)
+
+Uses `google-genai` client (same pattern as [profiling/hyde_generator.py](file:///c:/HelioX/profiling/hyde_generator.py)).
+
+---
+
+#### [NEW] [validator.py](file:///c:/HelioX/query_pipeline/validator.py)
+
+SQO validation and locking (FR-3.5, FR-3.6, FR-3.8):
+- **Ambiguity detection**: Flag vague queries (no entities, no constraints, overly broad)
+- **Missing constraint injection**: Add safe defaults when constraints are absent
+- **Entity grounding stub**: Placeholder for checking entities against indexed corpus (returns warning for ungrounded)
+- **Confidence check**: If decomposition_confidence < 0.65 → signal re-decompose
+- **SQO lock**: Set `locked=True` — immutable downstream
+
+---
+
+#### [NEW] [analyzer.py](file:///c:/HelioX/query_pipeline/analyzer.py)
+
+Main orchestrator class `QueryAnalyzer` that coordinates:
+1. Intent classification
+2. Entity extraction
+3. Constraint extraction
+4. Decomposition (fact vs reasoning)
+5. Validation + SQO locking
+
+Single async `analyze(query, session_context)` method returns `QueryAnalysisResponse`.
+
+---
+
+#### [NEW] [routes.py](file:///c:/HelioX/query_pipeline/routes.py)
+
+FastAPI router with endpoint:
+
+```
+POST /v1/query/analyze
+```
+- Input: `QueryAnalysisRequest`
+- Output: `QueryAnalysisResponse`
+- Validates input, orchestrates analysis, returns locked SQO
+
+---
+
+### Project Configuration
+
+#### [MODIFY] [pyproject.toml](file:///c:/HelioX/pyproject.toml)
+
+- Add `query_pipeline*` to `tool.setuptools.packages.find.include`
+- Add `query_pipeline` optional dependency group (uses `google-genai` same as profiling)
+
+#### [MODIFY] [.env.example](file:///c:/HelioX/.env.example)
+
+Add query pipeline config vars:
+```
+# Query Pipeline
+DECOMPOSITION_CONFIDENCE_THRESHOLD=0.65
+MAX_DECOMPOSITION_RETRIES=1
+QUERY_ANALYSIS_TIMEOUT_MS=2000
+```
+
+---
+
+## Verification Plan
+
+### Automated Tests
+
+#### [NEW] [test_query_analyzer.py](file:///c:/HelioX/tests/test_query_analyzer.py)
+
+Unit tests following the pattern from [tests/test_profiling_service.py](file:///c:/HelioX/tests/test_profiling_service.py):
+
+| Test Class | Coverage |
+|------------|----------|
+| `TestIntentClassifier` | All 4 intents, fallback behavior, edge cases (empty, ambiguous) |
+| `TestQueryEntityExtractor` | Proper nouns, acronyms, regulations, dates, empty input |
+| [TestConstraintExtractor](file:///c:/HelioX/tests/test_profiling_service.py#32-93) | Temporal, geographic, regulatory, scope extraction |
+| `TestDecomposer` | Mocked Gemini — fact/reasoning split, confidence scoring, retry on low confidence |
+| `TestValidator` | Ambiguity detection, missing constraints, SQO locking |
+| `TestSQOSchemas` | Serialization round-trip, validation rules, enum values |
+| `TestQueryAnalyzer` | Full pipeline integration with mocked LLM |
+
+**Run command:**
+```
+cd c:\HelioX && python -m pytest tests/test_query_analyzer.py -v
+```
+
+### Existing Tests (regression)
+
+Ensure existing tests still pass:
+```
+cd c:\HelioX && python -m pytest tests/ -v
+```
