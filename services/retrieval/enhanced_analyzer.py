@@ -41,15 +41,6 @@ SEMANTIC_SYNONYMS = {
     "method": ["approach", "technique", "procedure", "technique", "way"],
 }
 
-# Targeted heavy expansions for conceptually "weak" or overly short queries
-WEAK_QUERY_EXPANSIONS = {
-    "project": ["projects", "names", "list", "titles", "built", "repository", "app", "codebase"],
-    "projects": ["project", "names", "list", "titles", "built", "repository", "apps", "codebases"],
-    "architecture": ["system", "design", "components", "diagram", "stack", "flow", "structure"],
-    "features": ["capabilities", "functions", "tools", "support", "options", "abilities"],
-    "error": ["bug", "issue", "crash", "traceback", "exception", "failure", "fix"]
-}
-
 # Domain-specific expansions (can be extended)
 DOMAIN_TERMS = {
     "machine learning": ["ml", "deep learning", "neural network", "ai", "artificial intelligence"],
@@ -82,33 +73,28 @@ STOPWORDS = {
 }
 
 
-def expand_keywords_semantic(keywords: List[str], raw_query: str = "") -> List[str]:
+def expand_keywords_semantic(keywords: List[str]) -> List[str]:
     """
     Expand keywords with semantic synonyms and domain-specific terms.
-    Injects heavy conceptual padding for short/weak queries based on context.
+
+    Args:
+        keywords: Original list of keywords
+
+    Returns:
+        Extended list with semantic expansions added, deduplicated
     """
     expanded = list(keywords)
-    query_words = raw_query.lower().split()
-    is_weak_query = len(query_words) <= 5
-    
     for kw in keywords:
         kw_lower = kw.lower()
-        
-        # Add basic semantic synonyms
+        # Add semantic synonyms
         if kw_lower in SEMANTIC_SYNONYMS:
             expanded.extend(SEMANTIC_SYNONYMS[kw_lower])
-            
-        # Add targeted heavy expansions purely for short/weak queries targeting major concepts
-        if is_weak_query and kw_lower in WEAK_QUERY_EXPANSIONS:
-            expanded.extend(WEAK_QUERY_EXPANSIONS[kw_lower])
-            
         # Add domain-specific expansions
         for domain, terms in DOMAIN_TERMS.items():
             if kw_lower in domain or kw_lower in terms:
                 expanded.extend([domain] + terms)
                 break
-                
-    # Deduplicate while preserving order
+    # Deduplicate while preserving order (roughly)
     return list(dict.fromkeys(expanded))
 
 
@@ -164,9 +150,15 @@ def extract_keywords_enhanced(text: str) -> List[str]:
     # Convert to lowercase and remove punctuation
     normalized = re.sub(r'[^\w\s]', ' ', text.lower())
 
-    # Split into words and filter stopwords
     words = normalized.split()
-    keywords = [word for word in words if word not in STOPWORDS and len(word) > 2]
+    expanded_words: List[str] = []
+    for word in words:
+        expanded_words.append(word)
+        parts = re.findall(r"[a-z]+|\d+", word)
+        if len(parts) > 1:
+            expanded_words.extend(parts)
+
+    keywords = [word for word in expanded_words if word not in STOPWORDS and len(word) > 2]
 
     # Boost important technical terms (simple heuristic)
     important_terms = []
@@ -177,7 +169,7 @@ def extract_keywords_enhanced(text: str) -> List[str]:
         else:
             important_terms.append(word)
 
-    return important_terms
+    return list(dict.fromkeys(important_terms))
 
 
 def _classify_query_type_enhanced(query: str) -> str:
@@ -208,7 +200,7 @@ def analyze_query_enhanced(raw_query: str) -> StructuredQuery:
     """
     entities = extract_entities_enhanced(raw_query)
     keywords = extract_keywords_enhanced(raw_query)
-    expanded_keywords = expand_keywords_semantic(keywords, raw_query)
+    expanded_keywords = expand_keywords_semantic(keywords)
     query_type = _classify_query_type_enhanced(raw_query)
 
     # Generate intent-based constraints for downstream processing

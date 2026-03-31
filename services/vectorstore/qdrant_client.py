@@ -92,6 +92,69 @@ class VectorStore:
             self.logger.info(f"Using local Qdrant at {location}")
             self.is_local = True
 
+        # Tracks whether payload indexes used by server-side filters are ready.
+        self._payload_indexes_ready = False
+
+    @staticmethod
+    def _is_missing_payload_index_error(error: Exception, field_name: str) -> bool:
+        """Return True when Qdrant reports a missing payload index for the given field."""
+        message = str(error).lower()
+        if "index required but not found" not in message:
+            return False
+        return field_name.lower() in message
+
+    def _create_payload_index(self, field_name: str, field_schema: str) -> None:
+        """Create a payload index with compatibility fallback for qdrant-client signatures."""
+        try:
+            self.client.create_payload_index(
+                collection_name=self.collection_name,
+                field_name=field_name,
+                field_schema=field_schema,
+            )
+            self.logger.info(
+                f"Ensured payload index for '{field_name}' ({field_schema}) on '{self.collection_name}'."
+            )
+            return
+        except TypeError:
+            # Older clients may use field_type instead of field_schema.
+            try:
+                self.client.create_payload_index(
+                    collection_name=self.collection_name,
+                    field_name=field_name,
+                    field_type=field_schema,
+                )
+                self.logger.info(
+                    f"Ensured payload index for '{field_name}' ({field_schema}) on '{self.collection_name}'."
+                )
+                return
+            except UnexpectedResponse as error:
+                if error.status_code == 409 or "already exists" in str(error).lower():
+                    return
+                raise
+        except UnexpectedResponse as error:
+            if error.status_code == 409 or "already exists" in str(error).lower():
+                return
+            raise
+
+    def _ensure_payload_indexes(self, force: bool = False) -> None:
+        """Ensure payload indexes needed for filtered retrieval are available in Qdrant."""
+        if self._payload_indexes_ready and not force:
+            return
+
+        self._create_payload_index("source", "keyword")
+        self._create_payload_index("chunk_index", "integer")
+        self._payload_indexes_ready = True
+
+    def _prepare_filter_indexes(self, force: bool = False) -> None:
+        """Best-effort payload index preparation that does not break retrieval flow."""
+        try:
+            self._ensure_payload_indexes(force=force)
+        except Exception as error:
+            self._payload_indexes_ready = False
+            self.logger.warning(
+                f"Could not ensure payload indexes for filtered retrieval: {error}"
+            )
+
     def _get_embedder_vector_size(self, embedder) -> int:
         """
         Determine vector size from an embedder instance by inspecting its model.
@@ -178,11 +241,12 @@ class VectorStore:
             except Exception as e:
                 self.logger.warning(f"Unexpected error deleting collection: {e}. Will attempt to create anyway.")
 
+        created_collection = False
+
         # Try to create the collection
         try:
             self._create_collection()
-            # Successfully created, nothing more to do
-            return
+            created_collection = True
         except UnexpectedResponse as e:
             if e.status_code == 409:
                 # Collection already exists - this is okay, we'll validate it below
@@ -193,7 +257,11 @@ class VectorStore:
             raise
 
         # Collection exists (either from before or after 409). Validate dimensions.
-        self._validate_collection_dimensions(force_recreate)
+        if not created_collection:
+            self._validate_collection_dimensions(force_recreate)
+
+        # Ensure payload indexes used by source/chunk metadata filters are available.
+        self._prepare_filter_indexes(force=True)
 
     def _create_collection(self) -> None:
         """Helper method to create the collection with proper configuration."""
@@ -308,7 +376,8 @@ class VectorStore:
     def search(
         self,
         query_embedding: List[float],
-        top_k: int = 5
+        top_k: int = 5,
+        source_hints: Optional[List[str]] = None,
     ) -> List[Dict[str, Any]]:
         """
         Perform similarity search for a query embedding.
@@ -320,12 +389,73 @@ class VectorStore:
         Returns:
             List of result dictionaries with chunk_id, score, text, and payload
         """
-        # Use query_points for this version of qdrant-client
-        response = self.client.query_points(
-            collection_name=self.collection_name,
-            query=query_embedding,
-            limit=top_k
-        )
+        normalized_sources: List[str] = []
+        if source_hints:
+            for src in source_hints:
+                if not src:
+                    continue
+                src_clean = str(src).strip()
+                if src_clean and src_clean not in normalized_sources:
+                    normalized_sources.append(src_clean)
+
+        query_filter = None
+        if normalized_sources:
+            self._prepare_filter_indexes()
+            if len(normalized_sources) == 1:
+                source_match = MatchValue(value=normalized_sources[0])
+            else:
+                source_match = MatchAny(any=normalized_sources)
+            query_filter = Filter(
+                must=[
+                    FieldCondition(key="source", match=source_match),
+                ]
+            )
+
+        # Use query_points for this version of qdrant-client.
+        # Keep a graceful fallback in case query_filter is not supported by runtime version.
+        search_limit = max(top_k, top_k * 3) if normalized_sources else top_k
+        try:
+            response = self.client.query_points(
+                collection_name=self.collection_name,
+                query=query_embedding,
+                limit=search_limit,
+                query_filter=query_filter,
+            )
+        except TypeError:
+            response = self.client.query_points(
+                collection_name=self.collection_name,
+                query=query_embedding,
+                limit=search_limit,
+            )
+        except Exception as e:
+            if normalized_sources and self._is_missing_payload_index_error(e, "source"):
+                self.logger.warning(
+                    "Missing Qdrant payload index for 'source'; creating indexes and retrying filtered vector query once."
+                )
+                self._prepare_filter_indexes(force=True)
+                try:
+                    response = self.client.query_points(
+                        collection_name=self.collection_name,
+                        query=query_embedding,
+                        limit=search_limit,
+                        query_filter=query_filter,
+                    )
+                except Exception as retry_error:
+                    e = retry_error
+
+            # Remote collections may reject filter queries when payload indexes are not created.
+            # Fallback to unfiltered ANN and apply source filtering client-side.
+            if normalized_sources:
+                self.logger.warning(
+                    f"Source-filtered vector query failed ({e}); falling back to client-side filtering."
+                )
+                response = self.client.query_points(
+                    collection_name=self.collection_name,
+                    query=query_embedding,
+                    limit=search_limit,
+                )
+            else:
+                raise
 
         # The response contains a list of points in the 'points' attribute
         results = response.points if hasattr(response, 'points') else []
@@ -342,7 +472,14 @@ class VectorStore:
             }
             formatted.append(result)
 
-        return formatted
+        if normalized_sources:
+            normalized_set = {s.lower() for s in normalized_sources}
+            formatted = [
+                item for item in formatted
+                if str((item.get("payload") or {}).get("source", "")).strip().lower() in normalized_set
+            ]
+
+        return formatted[:top_k]
 
     def get_chunks_by_metadata(
         self,
@@ -365,8 +502,10 @@ class VectorStore:
         if not chunk_indices:
             return []
 
+        self._prepare_filter_indexes()
+
         # Build filter: source == source AND chunk_index IN indices
-        filter = Filter(
+        filter_obj = Filter(
             must=[
                 FieldCondition(key="source", match=MatchValue(value=source)),
                 FieldCondition(key="chunk_index", match=MatchAny(any=chunk_indices))
@@ -376,18 +515,39 @@ class VectorStore:
         # Use scroll to retrieve all matching points
         results = []
         next_offset = None
+        use_server_filter = True
+        chunk_index_set = set(chunk_indices)
         try:
             while True:
-                records, next_offset = self.client.scroll(
-                    collection_name=self.collection_name,
-                    limit=100,  # batch size
-                    offset=next_offset,
-                    filter=filter,
-                    with_payload=True,
-                    with_vectors=False
-                )
+                params = {
+                    "collection_name": self.collection_name,
+                    "limit": 100,
+                    "offset": next_offset,
+                    "with_payload": True,
+                    "with_vectors": False,
+                }
+                if use_server_filter:
+                    params["scroll_filter"] = filter_obj
+
+                try:
+                    records, next_offset = self.client.scroll(**params)
+                except Exception as e:
+                    if use_server_filter:
+                        self.logger.warning(
+                            f"Metadata scroll filter unavailable ({e}); falling back to client-side filtering."
+                        )
+                        use_server_filter = False
+                        next_offset = None
+                        continue
+                    raise
+
                 for record in records:
                     payload = record.payload or {}
+                    if not use_server_filter:
+                        source_value = str(payload.get("source", "")).strip()
+                        chunk_index_value = payload.get("chunk_index")
+                        if source_value != source or chunk_index_value not in chunk_index_set:
+                            continue
                     results.append({
                         "chunk_id": payload.get("chunk_id", str(record.id)),
                         "text": payload.get("text", ""),
@@ -397,6 +557,79 @@ class VectorStore:
                     break
         except Exception as e:
             self.logger.error(f"Error fetching chunks by metadata: {e}")
+            return []
+
+        return results
+
+    def get_chunks_by_source(
+        self,
+        source: str,
+        limit: int = 2000
+    ) -> List[Dict[str, Any]]:
+        """
+        Retrieve chunks for a specific source document.
+
+        Args:
+            source: Source document identifier (payload['source'])
+            limit: Maximum number of chunks to return
+
+        Returns:
+            List of chunk dictionaries with chunk_id, text, and payload.
+        """
+        if not source:
+            return []
+
+        self._prepare_filter_indexes()
+
+        filter_obj = Filter(
+            must=[
+                FieldCondition(key="source", match=MatchValue(value=source)),
+            ]
+        )
+
+        results = []
+        next_offset = None
+        use_server_filter = True
+        try:
+            while True:
+                params = {
+                    "collection_name": self.collection_name,
+                    "limit": min(256, max(1, limit - len(results))),
+                    "offset": next_offset,
+                    "with_payload": True,
+                    "with_vectors": False,
+                }
+                if use_server_filter:
+                    params["scroll_filter"] = filter_obj
+
+                try:
+                    records, next_offset = self.client.scroll(**params)
+                except Exception as e:
+                    if use_server_filter:
+                        self.logger.warning(
+                            f"Source scroll filter unavailable ({e}); falling back to client-side filtering."
+                        )
+                        use_server_filter = False
+                        next_offset = None
+                        continue
+                    raise
+
+                for record in records:
+                    payload = record.payload or {}
+                    if not use_server_filter:
+                        source_value = str(payload.get("source", "")).strip()
+                        if source_value != source:
+                            continue
+                    results.append({
+                        "chunk_id": payload.get("chunk_id", str(record.id)),
+                        "text": payload.get("text", ""),
+                        "payload": payload,
+                    })
+
+                if next_offset is None or len(results) >= limit:
+                    break
+        except Exception as e:
+            self.logger.error(f"Error fetching chunks by source '{source}': {e}")
             return []
 
         return results

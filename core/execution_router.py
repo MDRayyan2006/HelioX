@@ -15,15 +15,15 @@ Version: 1.0.0
 
 import time
 import logging
+import re
 from typing import Dict, Any, Optional
 from dataclasses import dataclass, field
 
 from core.logger import get_logger
 from services.query.analyzer import analyze_query
-from services.retrieval.retriever import get_retriever
 from services.retrieval.enhanced_retriever import get_enhanced_retriever
 from services.retrieval.reranker import rerank
-from services.retrieval.ranker import merge_rank
+from services.retrieval.ranker import apply_coverage_ranking
 from agents.worker import process_chunks
 from agents.adjudicator import adjudicate
 from agents.answer_composer import compose_answer
@@ -265,6 +265,15 @@ class ComplexityAnalyzer:
 logger = get_logger("EXECUTION_ROUTER")
 
 
+def _is_anchor_query(text: str) -> bool:
+    return bool(
+        re.search(
+            r"\b(?:observation|section|table|figure|appendix|clause|item|point)\s*[-:#]?\s*\d+\b",
+            text.lower(),
+        )
+    )
+
+
 class ExecutionRouter:
     """
     Routes queries to appropriate execution pipeline based on complexity.
@@ -347,7 +356,6 @@ class ExecutionRouter:
             f"Query completed: mode={mode}, time={execution_time_ms:.1f}ms, "
             f"confidence={response['confidence']:.3f}"
         )
-        logger.info(f"mode_used = {mode}")
 
         return response
 
@@ -355,7 +363,7 @@ class ExecutionRouter:
         """
         Execute lightweight pipeline: retrieval → workers → adjudication → answer.
 
-        Single pass with minimal retrieval depth (top_k=3). Vector only.
+        Single pass with minimal retrieval depth (top_k=3).
         No retry loop, no critic, no adaptive strategies.
 
         Args:
@@ -367,12 +375,24 @@ class ExecutionRouter:
         """
         logger.info("Starting lightweight pipeline")
 
-        # Stage 1: Retrieval (use enhanced retriever, vector only)
+        # Stage 1: Retrieval (use enhanced retriever)
         retriever = get_enhanced_retriever()
-        formatted_hits, _ = retriever.retrieve(structured, top_k=3, vector_only=True)  # Minimal depth, vector only
+        merged_hits, _ = retriever.retrieve(structured, top_k=3)  # Minimal depth
 
-        # Stage 2: Skipping Ranking & Reranking for Lightweight pipeline
-        top_chunks = formatted_hits[:3]
+        # Stage 2: Ranking & Reranking
+        if _is_anchor_query(raw_query):
+            ranked = sorted(merged_hits, key=lambda x: x.get("final_score", 0.0), reverse=True)
+        else:
+            ranked = apply_coverage_ranking(merged_hits)
+        top_lexical = ranked[0].get("lexical_score", 0.0) if ranked else 0.0
+        top_score = ranked[0].get("final_score", 0.0) if ranked else 0.0
+        if ranked and top_lexical >= 0.75 and top_score >= 0.8:
+            top_chunks = ranked[:3]
+            logger.info("Skipped cross-encoder rerank due to high lexical confidence")
+        else:
+            rerank_top = min(20 if _is_anchor_query(raw_query) else 10, len(ranked))
+            reranked = rerank(raw_query, ranked[:rerank_top], top_k=3)
+            top_chunks = reranked[:3]
 
         logger.info(f"Lightweight retrieval: got {len(top_chunks)} chunks")
 
@@ -388,9 +408,15 @@ class ExecutionRouter:
         )
 
         # Stage 5: Answer composition (use lightweight model)
+        compose_input = structured.dict()
+        compose_input["raw_query"] = raw_query
+        compose_input["retrieved_context"] = [
+            c.get("context_text") or c.get("text", "")
+            for c in top_chunks if isinstance(c, dict)
+        ]
         composed = compose_answer(
             adjudication.dict(),
-            structured.dict(),
+            compose_input,
             use_lightweight=True
         )
 

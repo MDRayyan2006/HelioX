@@ -99,11 +99,17 @@ def extract_keywords(text: str) -> List[str]:
     # Convert to lowercase and remove punctuation
     normalized = re.sub(r'[^\w\s]', ' ', text.lower())
 
-    # Split into words and filter stopwords
     words = normalized.split()
-    keywords = [word for word in words if word not in STOPWORDS and len(word) > 1]
+    expanded_words: List[str] = []
+    for word in words:
+        expanded_words.append(word)
+        parts = re.findall(r"[a-z]+|\d+", word)
+        if len(parts) > 1:
+            expanded_words.extend(parts)
 
-    return keywords
+    keywords = [word for word in expanded_words if word not in STOPWORDS and len(word) > 1]
+
+    return list(dict.fromkeys(keywords))
 
 def _classify_query_type(query: str) -> str:
     """Classify query type using rule-based patterns."""

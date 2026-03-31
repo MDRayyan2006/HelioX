@@ -16,17 +16,27 @@ Usage:
 
 import time
 import logging
+import re
 from typing import Dict, Any, List
 
 from core.logger import get_logger
 from services.query.analyzer import analyze_query
 from services.retrieval.enhanced_retriever import get_enhanced_retriever
-from services.retrieval.ranker import merge_rank
+from services.retrieval.ranker import apply_coverage_ranking
 from services.retrieval.reranker import rerank
 from agents.adjudicator import adjudicate
 from agents.answer_composer import compose_answer
 
 logger = get_logger("LIGHTWEIGHT_PIPELINE")
+
+
+def _is_anchor_query(text: str) -> bool:
+    return bool(
+        re.search(
+            r"\b(?:observation|section|table|figure|appendix|clause|item|point)\s*[-:#]?\s*\d+\b",
+            text.lower(),
+        )
+    )
 
 
 def run_lightweight_pipeline(query: str, top_k: int = 3) -> Dict[str, Any]:
@@ -61,18 +71,28 @@ def run_lightweight_pipeline(query: str, top_k: int = 3) -> Dict[str, Any]:
 
     # Step 2: Hybrid retrieval (vector + BM25) with enhanced retriever
     retriever = get_enhanced_retriever()
-    entity_hits, vector_hits = retriever.retrieve(structured, top_k=top_k)
-    logger.info(f"Retrieved: {len(entity_hits)} entity hits, {len(vector_hits)} vector hits")
+    merged_hits, vector_hits = retriever.retrieve(structured, top_k=top_k)
+    logger.info(f"Retrieved: {len(merged_hits)} merged hits, {len(vector_hits)} vector hits")
 
-    # Step 3: Merge ranking
-    ranked = merge_rank(entity_hits, vector_hits)
-    logger.info(f"Merged ranking: {len(ranked)} candidates")
+    # Step 3: Preserve strict relevance ordering for anchor/reference queries.
+    if _is_anchor_query(query):
+        ranked = sorted(merged_hits, key=lambda x: x.get("final_score", 0.0), reverse=True)
+        logger.info(f"Score ranking (anchor query): {len(ranked)} candidates")
+    else:
+        ranked = apply_coverage_ranking(merged_hits)
+        logger.info(f"Diversity ranking: {len(ranked)} candidates")
 
-    # Step 4: Rerank top candidates (use up to 10 for reranking, return top_k)
-    rerank_top = min(10, len(ranked))
-    reranked = rerank(query, ranked[:rerank_top], top_k=top_k)
-    top_chunks = reranked[:top_k]
-    logger.info(f"Reranked: {len(top_chunks)} final chunks")
+    # Step 4: Rerank top candidates (skip if lexical confidence is already very strong)
+    top_lexical = ranked[0].get("lexical_score", 0.0) if ranked else 0.0
+    top_score = ranked[0].get("final_score", 0.0) if ranked else 0.0
+    if ranked and top_lexical >= 0.75 and top_score >= 0.8:
+        top_chunks = ranked[:top_k]
+        logger.info("Skipped cross-encoder rerank due to high lexical confidence")
+    else:
+        rerank_top = min(20 if _is_anchor_query(query) else 10, len(ranked))
+        reranked = rerank(query, ranked[:rerank_top], top_k=top_k)
+        top_chunks = reranked[:top_k]
+        logger.info(f"Reranked: {len(top_chunks)} final chunks")
 
     # Step 5: Worker processing (single pass)
     from agents.worker import process_chunks
@@ -84,7 +104,13 @@ def run_lightweight_pipeline(query: str, top_k: int = 3) -> Dict[str, Any]:
     logger.info(f"Adjudicated: {len(adjudication.final_claims)} claims, confidence={adjudication.confidence:.3f}")
 
     # Step 7: Answer composition
-    composed = compose_answer(adjudication.dict(), structured.dict())
+    compose_input = structured.dict()
+    compose_input["raw_query"] = query
+    compose_input["retrieved_context"] = [
+        c.get("context_text") or c.get("text", "")
+        for c in top_chunks if isinstance(c, dict)
+    ]
+    composed = compose_answer(adjudication.dict(), compose_input)
     logger.info(f"Composed answer: {len(composed['answer'])} characters")
 
     # Build citations from chunks
@@ -142,10 +168,20 @@ def run_ultra_lightweight_pipeline(query: str, top_k: int = 3) -> Dict[str, Any]
     # Analyze and retrieve
     structured = analyze_query(query)
     retriever = get_enhanced_retriever()
-    entity_hits, vector_hits = retriever.retrieve(structured, top_k=top_k)
-    ranked = merge_rank(entity_hits, vector_hits)
-    reranked = rerank(query, ranked[:10], top_k=top_k)
-    top_chunks = reranked[:top_k]
+    merged_hits, _ = retriever.retrieve(structured, top_k=top_k)
+    if _is_anchor_query(query):
+        ranked = sorted(merged_hits, key=lambda x: x.get("final_score", 0.0), reverse=True)
+    else:
+        ranked = apply_coverage_ranking(merged_hits)
+    top_lexical = ranked[0].get("lexical_score", 0.0) if ranked else 0.0
+    top_score = ranked[0].get("final_score", 0.0) if ranked else 0.0
+    if ranked and top_lexical >= 0.75 and top_score >= 0.8:
+        top_chunks = ranked[:top_k]
+        logger.info("Skipped cross-encoder rerank due to high lexical confidence")
+    else:
+        rerank_top = 20 if _is_anchor_query(query) else 10
+        reranked = rerank(query, ranked[:rerank_top], top_k=top_k)
+        top_chunks = reranked[:top_k]
 
     # Direct answer from top chunks (pass them as "citations" to composer)
     # The answer composer expects adjudication format, so we fake it
@@ -158,7 +194,13 @@ def run_ultra_lightweight_pipeline(query: str, top_k: int = 3) -> Dict[str, Any]
         "confidence": 1.0,  # Placeholder
     }
 
-    composed = compose_answer(fake_adjudication, structured.dict())
+    compose_input = structured.dict()
+    compose_input["raw_query"] = query
+    compose_input["retrieved_context"] = [
+        c.get("context_text") or c.get("text", "")
+        for c in top_chunks if isinstance(c, dict)
+    ]
+    composed = compose_answer(fake_adjudication, compose_input)
 
     # Build citations
     citations = []

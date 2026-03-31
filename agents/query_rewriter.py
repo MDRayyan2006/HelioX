@@ -101,6 +101,41 @@ def _has_completeness_issue(issues: List[str]) -> bool:
     return any("not fully address" in issue for issue in issues)
 
 
+def _sanitize_llm_rewrite(raw_text: str, original_query: str) -> str:
+    """Normalize LLM rewrite output into a single retriever-safe query string."""
+    if not raw_text:
+        return ""
+
+    cleaned = raw_text.strip()
+    cleaned = re.sub(r"```[\s\S]*?```", "", cleaned)
+    cleaned = re.sub(r"<think>[\s\S]*?</think>", "", cleaned, flags=re.IGNORECASE)
+    cleaned = re.sub(r"(?i)^\s*rewritten\s*query\s*:\s*", "", cleaned)
+    cleaned = cleaned.strip().strip('"\'`')
+
+    lines = [
+        re.sub(r"^[-*\u2022\d.)\s]+", "", line).strip().strip('"\'`')
+        for line in cleaned.splitlines()
+        if line.strip()
+    ]
+
+    lines = [
+        line for line in lines
+        if line and not re.match(r"(?i)^(here|output|reasoning|analysis)\b", line)
+    ]
+
+    candidate = lines[-1] if lines else cleaned
+    candidate = re.sub(r"\s+", " ", candidate).strip()
+
+    if not candidate:
+        return ""
+    if len(candidate) > 240:
+        return ""
+    if candidate.lower() == original_query.strip().lower():
+        return ""
+
+    return candidate
+
+
 # ---------------------------------------------------------------------------
 # Rewrite strategies
 # ---------------------------------------------------------------------------
@@ -337,11 +372,14 @@ def rewrite_query(
             )
             llm_rewritten = generate(prompt)
             if llm_rewritten:
-                logger.info(f"LLM rewrite successful: {llm_rewritten[:80]}...")
-                return {
-                    "rewritten_query": llm_rewritten,
-                    "reason": "llm_enhancement: groq rewrite due to low confidence",
-                }
+                sanitized = _sanitize_llm_rewrite(llm_rewritten, original_query)
+                if sanitized:
+                    logger.info(f"LLM rewrite successful: {sanitized[:80]}...")
+                    return {
+                        "rewritten_query": sanitized,
+                        "reason": "llm_enhancement: groq rewrite due to low confidence",
+                    }
+                logger.warning("LLM rewrite was not retriever-safe after sanitization. Falling back.")
             else:
                 logger.warning("LLM rewrite empty or unavailable. Falling back to deterministic.")
         except Exception as e:

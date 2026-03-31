@@ -140,7 +140,11 @@ export default function App() {
 
     try {
       const modeStr = mode === 'legacy' ? 'legacy' : 'multi-agent';
-      const data = await queryPipeline(queryStr, modeStr);
+      const sourceHints = [...uploadedDocs]
+        .map((doc) => doc.name)
+        .filter(Boolean)
+        .reverse();
+      const data = await queryPipeline(queryStr, modeStr, sourceHints);
 
       setResult(data);
       setIsLoading(false);
@@ -371,7 +375,7 @@ export default function App() {
                       </li>
                       <li className="flex items-center gap-3 text-on-surface" >
                         <span className="material-symbols-outlined text-primary-container" >check_circle</span>
-                        Parallel Agent Pipeline
+                        Parallel Agent Pipeline 
                       </li>
                     </ul>
                   </div>

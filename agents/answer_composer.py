@@ -10,18 +10,95 @@ Deterministic composition logic:
 - Apply evidence threshold rules
 """
 
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any
 import re
 from core.logger import get_logger
 
 
 from services.llm.groq_client import generate
 
+
+def _coerce_evidence_blocks(citations: List[str], structured_query: Dict[str, Any]) -> List[str]:
+    """Build evidence blocks from retrieved context first, then citation spans."""
+    blocks: List[str] = []
+
+    retrieved_context = structured_query.get("retrieved_context", [])
+    if isinstance(retrieved_context, list):
+        for item in retrieved_context:
+            if isinstance(item, str) and item.strip():
+                blocks.append(item.strip())
+            elif isinstance(item, dict):
+                text = (item.get("context_text") or item.get("text") or "").strip()
+                if text:
+                    blocks.append(text)
+
+    if not blocks:
+        for c in citations:
+            if isinstance(c, str) and c.strip():
+                blocks.append(c.strip())
+
+    return blocks
+
+
+def _extract_observation_answer(raw_query: str, evidence_blocks: List[str]) -> str:
+    """
+    Deterministically extract observation text for queries like "Observation 2".
+    """
+    match = re.search(r"\bobservation\s*[-:]?\s*(\d+)\b", raw_query.lower())
+    if not match or not evidence_blocks:
+        return ""
+
+    obs_num = match.group(1)
+    obs_pattern = re.compile(rf"\bobservation\s*[-:]?\s*{re.escape(obs_num)}\b", re.IGNORECASE)
+    obs_any_pattern = re.compile(r"\bobservation\s*[-:]?\s*\d+\b", re.IGNORECASE)
+
+    for block in evidence_blocks:
+        block_clean = re.sub(r"\s+", " ", block).strip()
+        if not block_clean:
+            continue
+
+        if obs_pattern.search(block_clean):
+            # Prefer extracting until the next observation marker to avoid spillover.
+            target = obs_pattern.search(block_clean)
+            if target:
+                next_obs = obs_any_pattern.search(block_clean, target.end())
+                if next_obs:
+                    candidate = block_clean[target.start():next_obs.start()].strip(" .;:-")
+                else:
+                    candidate = block_clean[target.start():].strip(" .;:-")
+                if candidate:
+                    sentences = [
+                        s.strip() for s in re.split(r"(?<=[.!?])\s+", candidate)
+                        if s.strip()
+                    ]
+                    if sentences:
+                        return " ".join(sentences[:2]).strip()
+                    return candidate
+
+            sentences = [s.strip() for s in re.split(r"(?<=[.!?])\s+", block_clean) if s.strip()]
+            for idx, sentence in enumerate(sentences):
+                if obs_pattern.search(sentence):
+                    # Include the next sentence when available for better completeness.
+                    if idx + 1 < len(sentences):
+                        next_sentence = sentences[idx + 1]
+                        if re.search(r"\bobservation\s*[-:]?\s*\d+\b", next_sentence, re.IGNORECASE):
+                            return sentence
+                        return f"{sentence} {next_sentence}".strip()
+                    return sentence
+
+            # Fallback to a nearby window around the matched phrase.
+            m = obs_pattern.search(block_clean)
+            if m:
+                start = max(0, m.start() - 80)
+                end = min(len(block_clean), m.end() + 220)
+                return block_clean[start:end].strip()
+
+    return ""
+
 def compose_answer(
     adjudication: Dict[str, Any],
     structured_query: Dict[str, Any],
-    use_lightweight: bool = False,
-    chunks: Optional[List[Dict[str, Any]]] = None
+    use_lightweight: bool = False
 ) -> Dict[str, Any]:
     """
     Convert adjudicated worker outputs into a structured final answer.
@@ -64,11 +141,12 @@ def compose_answer(
         while len(citations) < len(final_claims):
             citations.append("Uncited supporting segment.")
 
-    # Evidence threshold: empty claims (completely missed)
-    if not final_claims:
+    # Evidence threshold: empty claims or low confidence
+    if not final_claims or confidence < 0.3:
         logger.info(
             f"Insufficient evidence: "
-            f"claims_empty={len(final_claims) == 0}"
+            f"claims_empty={len(final_claims) == 0}, "
+            f"confidence={confidence} < 0.3"
         )
         return {
             "answer": "Insufficient evidence",
@@ -87,86 +165,23 @@ def compose_answer(
             constraints_applied.append(key)
     logger.info(f"Constraints applied: {constraints_applied}")
 
-    # ----------------------------------
-    # Deterministic Fast Paths (skip LLM)
-    # ----------------------------------
-    query_type = structured_query.get("query_type", "FACTUAL")
+    # Attempt LLM Synthesis
     raw_query = structured_query.get("raw_query", "")
 
-    # Path 1: Very high confidence + single claim → direct answer
-    if confidence >= 0.85 and len(final_claims) == 1:
-        logger.info(f"High confidence single claim, skipping LLM. Answer: {final_claims[0][:80]}...")
+    # Pass richer retrieved context to the LLM when available.
+    evidence_blocks = _coerce_evidence_blocks(citations, structured_query)
+    evidence_text = "\n".join(f"- {c}" for c in evidence_blocks)
+
+    # Deterministic exact extraction path for queries like "Observation 2".
+    exact_observation_answer = _extract_observation_answer(raw_query, evidence_blocks)
+    if exact_observation_answer:
+        logger.info("Using deterministic observation extraction path")
         return {
-            "answer": final_claims[0],
-            "citations": citations[:1],
-            "confidence": confidence,
+            "answer": exact_observation_answer,
+            "citations": citations,
+            "confidence": round(confidence, 4),
             "constraints_applied": constraints_applied,
         }
-
-    # Path 2: LIST queries → deterministic aggregation from actual chunk text
-    if query_type == "LIST":
-        items = []
-        # Extract items from actual chunk content, not meta-claims
-        source_texts = []
-        if chunks:
-            source_texts = [c.get('text', '') for c in chunks if c.get('text')]
-        if not source_texts:
-            source_texts = final_claims  # fallback to claims if no chunks
-
-        for text in source_texts:
-            # Split into sentences and extract meaningful items
-            sents = re.split(r'[.!?]+', text)
-            for sent in sents:
-                sent = sent.strip()
-                if not sent or len(sent) < 5:
-                    continue
-                # Remove common meta-prefixes
-                cleaned = sent
-                for prefix in ["This chunk discusses ", "This chunk covers ",
-                               "This chunk is about ", "Found: "]:
-                    if cleaned.startswith(prefix):
-                        cleaned = cleaned[len(prefix):]
-                cleaned = cleaned.strip()
-                if cleaned:
-                    # Split on commas, semicolons, and 'and' for list items
-                    parts = re.split(r'[,;]|\sand\s', cleaned)
-                    for part in parts:
-                        part = part.strip(" .\"'")
-                        # Keep only substantive items (not too short, not full sentences over 100 chars)
-                        if part and 3 < len(part) < 100:
-                            items.append(part)
-
-        # Deduplicate by normalized form while preserving best casing
-        seen_lower = {}
-        for item in items:
-            key = item.lower().strip()
-            if key not in seen_lower or len(item) > len(seen_lower[key]):
-                seen_lower[key] = item
-        unique_items = sorted(seen_lower.values(), key=lambda x: x.lower())
-
-        if unique_items:
-            answer_text = "Found: " + ", ".join(unique_items) + "."
-            logger.info(f"Deterministic LIST answer with {len(unique_items)} items")
-            return {
-                "answer": answer_text,
-                "citations": citations,
-                "confidence": confidence,
-                "constraints_applied": constraints_applied,
-            }
-        else:
-            logger.warning("LIST query but no items extracted; falling back to LLM")
-
-    # ----------------------------------
-    # LLM Synthesis Path
-    # ----------------------------------
-    # Pass full chunk content as evidence for LLM synthesis (not single-sentence citations)
-    if chunks:
-        evidence_text = "\n\n".join(
-            f"[{i+1}] {c.get('text', '')}" for i, c in enumerate(chunks) if c.get('text')
-        )
-    else:
-        # Fallback to citations if no chunks provided
-        evidence_text = "\n".join(f"- {c}" for c in citations)
 
     prompt = f"""
 You are HelioX, an advanced adaptive RAG assistant designed to produce highly accurate and reliable answers.
@@ -250,8 +265,6 @@ Your final answer here
     answer_text = None
     try:
         logger.info("Attempting LLM answer synthesis...")
-        import re
-
         # Choose API credentials based on mode
         if use_lightweight:
             from core.config import get_config
@@ -293,29 +306,6 @@ Your final answer here
             answer_text = ' '.join(sentences)
 
     logger.info(f"Composed answer: {len(answer_text)} characters")
-
-    # Citation alignment check (pre‑emptive)
-    if citations and answer_text:
-        # Simple bigram overlap per sentence
-        def _bigrams(text: str) -> set:
-            words = re.findall(r'\w+', text.lower())
-            return set(zip(words, words[1:])) if len(words) >= 2 else set()
-        answer_sents = re.split(r'[.!?]+', answer_text)
-        unaligned = []
-        for sent in answer_sents:
-            sent = sent.strip()
-            if not sent:
-                continue
-            sent_bigrams = _bigrams(sent)
-            if not sent_bigrams:
-                continue
-            # Check overlap with any citation
-            aligned = any(bool(sent_bigrams & _bigrams(cite)) for cite in citations)
-            if not aligned:
-                unaligned.append(sent[:80])
-        if unaligned:
-            logger.warning(f"{len(unaligned)} answer sentences have weak citation support: {unaligned}")
-            # Could regenerate or adjust, but for now we just log
 
     return {
         "answer": answer_text,

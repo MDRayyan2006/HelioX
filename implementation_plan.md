@@ -10,7 +10,7 @@ Design a minimal, production-ready multi-agent reasoning layer that sits on top 
 
 ```text
                          ┌───────────────────────┐
-                         │     User Query         │
+                         │     User Query        │
                          └───────────┬───────────┘
                                      │
                          ┌───────────▼───────────┐
@@ -46,10 +46,10 @@ Design a minimal, production-ready multi-agent reasoning layer that sits on top 
                          └───────────┬───────────┘
                                      │ CriticOutput
                          ┌───────────▼───────────┐
-                         │   ORCHESTRATOR         │
-                         │  • Assemble final       │
-                         │    response             │
-                         │  • Format + return      │
+                         │   ORCHESTRATOR        │
+                         │  • Assemble final     │
+                         │    response           │
+                         │  • Format + return    │
                          └───────────────────────┘
 ```
 

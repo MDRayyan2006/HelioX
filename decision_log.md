@@ -59,3 +59,71 @@
     3. Unverified or Missing Information (explicitly flagged)
     4. Constraints Applied
     5. Confidence Score
+### 6. Query Analyzer (Phase 3)
+
+Decision: Lightweight LLM-assisted structured decomposition with deterministic fallback.
+
+Rationale:
+- Enables intent classification, entity extraction, and constraint identification.
+- Prevents over-reliance on LLM by enforcing schema validation and fallback defaults.
+
+Note:
+- Must enforce strict JSON schema validation.
+- Must fallback to deterministic parsing if LLM fails.
+### 7. Retrieval Ranking Strategy
+
+Decision: Weighted Hybrid Scoring
+
+score =
+0.4 * semantic_similarity +
+0.3 * entity_match_score +
+0.2 * metadata_filter_score +
+0.1 * recency_score
+
+Rationale:
+- Ensures semantic meaning remains dominant while respecting constraints.
+
+Note:
+- All scores must be normalized (0–1).
+- Retrieval must return score breakdown for explainability.
+### 8. Confidence Scoring Layer
+
+Decision: Composite Confidence Metric
+
+confidence =
+0.35 * retrieval_coverage +
+0.25 * citation_density +
+0.20 * worker_agreement +
+0.20 * conflict_penalty_inverse
+
+Rationale:
+- Separates answer quality from LLM confidence.
+
+Note:
+- If confidence < threshold:
+    → trigger retrieval expansion OR
+    → return "Insufficient evidence"
+### 9. Worker Activation Strategy
+
+Decision: Top-K Adaptive Activation
+
+- Start with K = 3
+- If coverage < threshold → expand to K = 5–7
+
+Rationale:
+- Reduces unnecessary LLM calls
+- Maintains latency bounds
+
+Note:
+- Each worker must receive only top relevant spans (not full chunk)
+### 10. Failure Handling
+
+Decision: Graceful Degradation
+
+Cases:
+- LLM failure → fallback to deterministic extraction
+- Retrieval failure → return "Insufficient evidence"
+- Partial worker failure → continue with available outputs
+
+Note:
+- No silent failures allowed

@@ -13,7 +13,7 @@ import json
 import time
 import traceback
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -53,6 +53,8 @@ UPLOAD_DIR.mkdir(exist_ok=True)
 class QueryRequest(BaseModel):
     query: str
     mode: str = "multi-agent"  # "multi-agent" | "legacy" | "auto"
+    source_hint: Optional[str] = None
+    source_hints: Optional[List[str]] = None
 
 class RouteRequest(BaseModel):
     query: str
@@ -151,7 +153,12 @@ def query_endpoint(req: QueryRequest):
 
     start = time.perf_counter()
 
-    result = run_pipeline(req.query, use_agents=use_agents)
+    result = run_pipeline(
+        req.query,
+        use_agents=use_agents,
+        source_hint=req.source_hint,
+        source_hints=req.source_hints,
+    )
 
     duration_ms = round((time.perf_counter() - start) * 1000, 2)
 
@@ -343,23 +350,23 @@ async def upload_document(file: UploadFile = File(...)):
     file_path.write_bytes(content)
 
     try:
-        # Extract text
+        # Extract + chunk
         if ext == ".pdf":
-            text = _extract_pdf(file_path)
+            pages = _extract_pdf_pages(file_path)
+            chunks = _chunk_pdf_pages(pages, source=file.filename, chunk_size=320, overlap=40)
         else:
             text = content.decode("utf-8", errors="replace")
+            chunks = _chunk_text(text, source=file.filename, chunk_size=420, overlap=50)
 
-        # Chunk
-        chunks = _chunk_text(text, source=file.filename, chunk_size=500, overlap=50)
         if not chunks:
             raise HTTPException(400, "Could not extract any text from the file.")
 
         # Embed + upsert
         from services.embedding.embedder import get_embedder
-        from services.retrieval.retriever import get_retriever
+        from services.retrieval.enhanced_retriever import get_enhanced_retriever
 
         embedder = get_embedder()
-        retriever = get_retriever()
+        retriever = get_enhanced_retriever()
 
         texts = [c.text for c in chunks]
         embeddings = embedder.embed_batch(texts)
@@ -369,6 +376,14 @@ async def upload_document(file: UploadFile = File(...)):
         if hasattr(retriever, 'elastic_store') and retriever.elastic_store:
             elastic_chunks = [{"chunk_id": c.chunk_id, "text": c.text, "metadata": c.metadata} for c in chunks]
             retriever.elastic_store.index_chunks(elastic_chunks)
+
+        # Track latest source and invalidate retrieval/query caches.
+        try:
+            from core.cache.cache_service import bump_corpus_version, set_last_ingested_source
+            set_last_ingested_source(file.filename)
+            bump_corpus_version()
+        except Exception:
+            pass
 
         return UploadResponse(
             filename=file.filename,
@@ -382,39 +397,140 @@ async def upload_document(file: UploadFile = File(...)):
         raise HTTPException(500, f"Ingestion failed: {str(e)}")
 
 
-def _extract_pdf(path: Path) -> str:
-    """Extract text from a PDF using PyMuPDF (fitz)."""
+def _normalize_extracted_text(text: str) -> str:
+    """Normalize extracted PDF text for cleaner chunking and lexical matching."""
+    import re
+
+    if not text:
+        return ""
+
+    cleaned = text.replace("\u00ad", "")
+    cleaned = re.sub(r"(?<=\w)-\s*\n\s*(?=\w)", "", cleaned)
+    cleaned = re.sub(r"[ \t]+\n", "\n", cleaned)
+    cleaned = re.sub(r"\n{3,}", "\n\n", cleaned)
+    cleaned = re.sub(r"[ \t]{2,}", " ", cleaned)
+    return cleaned.strip()
+
+
+def _extract_pdf_pages(path: Path) -> List[Dict[str, Any]]:
+    """Extract page-wise text from a PDF with robust ordering and fallback readers."""
+    pages: List[Dict[str, Any]] = []
+
     try:
         import fitz  # PyMuPDF
+
         doc = fitz.open(str(path))
-        text = ""
-        for page in doc:
-            text += page.get_text() + "\n"
+        for idx, page in enumerate(doc, start=1):
+            page_text = ""
+
+            # Prefer block extraction with sorting for better reading order.
+            try:
+                blocks = page.get_text("blocks", sort=True)
+                if blocks:
+                    parts = []
+                    for block in blocks:
+                        block_text = block[4] if len(block) > 4 else ""
+                        if block_text and block_text.strip():
+                            parts.append(block_text.strip())
+                    page_text = "\n".join(parts)
+            except Exception:
+                page_text = ""
+
+            if len(page_text.strip()) < 40:
+                page_text = page.get_text("text", sort=True)
+
+            page_text = _normalize_extracted_text(page_text)
+            if page_text:
+                pages.append({"page": idx, "text": page_text})
+
         doc.close()
-        return text
+
+        # If fitz extraction is too sparse, fallback to pdfplumber.
+        total_chars = sum(len(p.get("text", "")) for p in pages)
+        if total_chars > 400:
+            return pages
+
     except ImportError:
-        # Fallback: try pdfplumber
+        pass
+    except Exception:
+        # Continue to fallback extractor for resilience.
+        pass
+
+    try:
         import pdfplumber
-        text = ""
+
+        pages = []
         with pdfplumber.open(path) as pdf:
-            for page in pdf.pages:
-                page_text = page.extract_text()
+            for idx, page in enumerate(pdf.pages, start=1):
+                page_text = page.extract_text(layout=True) or page.extract_text() or ""
+                page_text = _normalize_extracted_text(page_text)
                 if page_text:
-                    text += page_text + "\n"
-        return text
+                    pages.append({"page": idx, "text": page_text})
+        return pages
+    except Exception:
+        return []
 
 
-def _chunk_text(text: str, source: str, chunk_size: int = 500, overlap: int = 50):
+def _extract_pdf(path: Path) -> str:
+    """Backward-compatible extractor returning full text."""
+    pages = _extract_pdf_pages(path)
+    return "\n\n".join(p.get("text", "") for p in pages if p.get("text"))
+
+
+def _chunk_pdf_pages(
+    pages: List[Dict[str, Any]],
+    source: str,
+    chunk_size: int = 320,
+    overlap: int = 40,
+):
+    """Chunk PDF text page-by-page to preserve page metadata and reduce context bleed."""
+    chunks = []
+    chunk_num = 0
+
+    for page in pages:
+        page_text = str(page.get("text", "") or "")
+        page_num = page.get("page")
+        if not page_text.strip():
+            continue
+
+        page_chunks = _chunk_text(
+            page_text,
+            source=source,
+            chunk_size=chunk_size,
+            overlap=overlap,
+            start_chunk_index=chunk_num,
+            page=page_num,
+        )
+        chunks.extend(page_chunks)
+        chunk_num += len(page_chunks)
+
+    return chunks
+
+
+def _chunk_text(
+    text: str,
+    source: str,
+    chunk_size: int = 500,
+    overlap: int = 50,
+    start_chunk_index: int = 0,
+    page: Optional[int] = None,
+):
     """Split text into overlapping semantic chunks (by sentence boundaries)."""
     from models.schemas.chunk import Chunk
     import re
 
-    # Split by standard sentence delimiters, keeping the delimiter attached to the sentence
-    # This regex splits when it sees a period, question mark, or exclamation point followed by a space
-    sentences = [s.strip() for s in re.split(r'(?<=[.!?])\s+', text) if s.strip()]
+    # Normalize text and split by paragraph and sentence boundaries.
+    # This handles PDFs that have line-broken list items like "Observation 2".
+    normalized_text = text.replace("\r\n", "\n").replace("\r", "\n")
+    paragraphs = [p.strip() for p in re.split(r'\n{2,}', normalized_text) if p.strip()]
+    sentences = []
+    for para in paragraphs:
+        parts = [s.strip() for s in re.split(r'(?<=[.!?])\s+|\n+', para) if s.strip()]
+        if parts:
+            sentences.extend(parts)
     
     chunks = []
-    chunk_num = 0
+    chunk_num = start_chunk_index
     current_chunk = []
     current_length = 0
     
@@ -431,11 +547,15 @@ def _chunk_text(text: str, source: str, chunk_size: int = 500, overlap: int = 50
         if current_length + sent_len > max_chars and current_length > 0:
             # Finalize chunk
             chunk_text = " ".join(current_chunk)
+            metadata = {"source": source, "chunk_index": chunk_num}
+            if page is not None:
+                metadata["page"] = page
             chunks.append(Chunk(
                 chunk_id=f"upload_{uuid.uuid4().hex[:8]}_{chunk_num}",
                 text=chunk_text,
-                metadata={"source": source, "chunk_index": chunk_num},
+                metadata=metadata,
                 source=source,
+                page=page,
             ))
             chunk_num += 1
             
@@ -458,11 +578,15 @@ def _chunk_text(text: str, source: str, chunk_size: int = 500, overlap: int = 50
     # Flush remaining
     if current_chunk:
         chunk_text = " ".join(current_chunk)
+        metadata = {"source": source, "chunk_index": chunk_num}
+        if page is not None:
+            metadata["page"] = page
         chunks.append(Chunk(
             chunk_id=f"upload_{uuid.uuid4().hex[:8]}_{chunk_num}",
             text=chunk_text,
-            metadata={"source": source, "chunk_index": chunk_num},
+            metadata=metadata,
             source=source,
+            page=page,
         ))
 
     return chunks

@@ -8,6 +8,7 @@ Phase 4A: Uses StructuredQueryAnalyzer and RoutingEngine.
 """
 
 from typing import List, Dict, Any, Union, Optional
+import re
 from core.logger import get_logger
 
 from services.query.structured_analyzer import analyze_query, analyze_query as analyze_query_enhanced
@@ -25,6 +26,8 @@ def retrieve(
     chunk_score_weight: float = 0.1,
     rerank_threshold: float = 0.0,
     use_enhanced: bool = False,
+    source_hint: Optional[str] = None,
+    source_hints: Optional[List[str]] = None,
 ) -> List[Dict[str, Any]]:
     """
     Execute retrieval pipeline for one or multiple queries.
@@ -48,6 +51,14 @@ def retrieve(
         List of top-k chunk dictionaries with final scores, sorted by relevance
     """
     logger = get_logger("RETRIEVER_AGENT")
+
+    def _is_anchor_query(text: str) -> bool:
+        return bool(
+            re.search(
+                r"\b(?:observation|section|table|figure|appendix|clause|item|point)\s*[-:#]?\s*\d+\b",
+                text.lower(),
+            )
+        )
 
     # Use enhanced retriever if requested
     if use_enhanced:
@@ -74,6 +85,20 @@ def retrieve(
 
             # Analyze query with enhanced analyzer (semantic understanding)
             structured_query = analyze_query_enhanced(q)
+            normalized_hints: List[str] = []
+            if source_hint and source_hint.strip():
+                normalized_hints.append(source_hint.strip())
+            if source_hints:
+                for item in source_hints:
+                    if not item:
+                        continue
+                    item_clean = str(item).strip()
+                    if item_clean and item_clean not in normalized_hints:
+                        normalized_hints.append(item_clean)
+            if normalized_hints:
+                structured_query.constraints = dict(structured_query.constraints or {})
+                structured_query.constraints["source_hint"] = normalized_hints[0]
+                structured_query.constraints["source_hints"] = normalized_hints
             logger.info(f"Enhanced analysis: intent={structured_query.intent}, "
                         f"entities={structured_query.entities}, "
                         f"constraints keys={list(getattr(structured_query, 'constraints', {}).keys())}")
@@ -86,11 +111,19 @@ def retrieve(
             )
             logger.info(f"Enhanced retrieval: {len(merged_results)} merged results, {len(vector_hits)} vector hits")
 
-            # Skip merge_rank — enhanced_retriever already produces final scores
-            # Only apply diversity ranking (coverage-based MMR) to reduce redundancy
+            # Skip merge_rank — enhanced_retriever already produces final scores.
+            # Keep strict score ordering for anchor/reference queries.
             from services.retrieval.ranker import apply_coverage_ranking
-            ranked = apply_coverage_ranking(merged_results)
-            logger.info(f"Diversity-ranked {len(ranked)} results for sub-query {i+1}")
+            if _is_anchor_query(q):
+                ranked = sorted(
+                    merged_results,
+                    key=lambda x: x.get("final_score", 0.0),
+                    reverse=True,
+                )
+                logger.info(f"Score-ranked {len(ranked)} results for anchor sub-query {i+1}")
+            else:
+                ranked = apply_coverage_ranking(merged_results)
+                logger.info(f"Diversity-ranked {len(ranked)} results for sub-query {i+1}")
 
             all_ranked_results.extend(ranked)
 
@@ -111,9 +144,16 @@ def retrieve(
 
         # Sort by final_score and take top candidates for reranking
         deduplicated.sort(key=lambda x: x['final_score'], reverse=True)
-        top_n_for_rerank = min(10, len(deduplicated))
+        is_anchor = _is_anchor_query(original_query)
+        top_n_for_rerank = min(20 if is_anchor else 10, len(deduplicated))
         candidates = deduplicated[:top_n_for_rerank]
         logger.info(f"Selected top {top_n_for_rerank} candidates for reranking")
+
+        if is_anchor and candidates:
+            top_lexical = candidates[0].get("lexical_score", 0.0)
+            if top_lexical >= 0.75:
+                logger.info("Skipping cross-encoder rerank for anchor query due to strong lexical match")
+                return candidates[:top_k]
 
         # Rerank with cross-encoder using ORIGINAL query
         reranked = rerank(original_query, candidates, top_k=top_k, threshold=rerank_threshold)
@@ -148,6 +188,20 @@ def retrieve(
 
             # Analyze query with structured analyzer (intent, entities, constraints)
             structured_query = analyze_query(q)
+            normalized_hints: List[str] = []
+            if source_hint and source_hint.strip():
+                normalized_hints.append(source_hint.strip())
+            if source_hints:
+                for item in source_hints:
+                    if not item:
+                        continue
+                    item_clean = str(item).strip()
+                    if item_clean and item_clean not in normalized_hints:
+                        normalized_hints.append(item_clean)
+            if normalized_hints:
+                structured_query.constraints = dict(structured_query.constraints or {})
+                structured_query.constraints["source_hint"] = normalized_hints[0]
+                structured_query.constraints["source_hints"] = normalized_hints
             logger.info(f"Analyzed: intent={structured_query.intent}, "
                         f"entities={structured_query.entities}, "
                         f"constraints={list(structured_query.constraints.keys())}")

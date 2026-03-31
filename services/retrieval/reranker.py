@@ -65,8 +65,11 @@ def rerank(
     logger = get_logger("RERANKER")
     reranker = get_reranker()
 
-    # Build cross-encoder input pairs
-    pairs = [(query, chunk['text']) for chunk in chunks]
+    # Build cross-encoder input pairs (prefer expanded context when available)
+    pairs = [
+        (query, chunk.get('context_text') or chunk.get('text', ''))
+        for chunk in chunks
+    ]
 
     # Predict relevance scores (higher = more relevant)
     logger.info(f"Reranking {len(chunks)} candidates with cross-encoder")

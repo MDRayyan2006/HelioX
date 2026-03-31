@@ -8,11 +8,16 @@ const API_BASE = '/api';
 /**
  * POST /api/query — Run the RAG pipeline and get the full response.
  */
-export async function queryPipeline(query, mode = 'multi-agent') {
+export async function queryPipeline(query, mode = 'multi-agent', sourceHints = []) {
   const res = await fetch(`${API_BASE}/query`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ query, mode }),
+    body: JSON.stringify({
+      query,
+      mode,
+      source_hint: sourceHints?.[0] || null,
+      source_hints: sourceHints,
+    }),
   });
 
   if (!res.ok) {

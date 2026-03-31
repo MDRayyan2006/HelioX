@@ -28,7 +28,6 @@ def compute_top_k(
     base_k: int = 3,
     *,
     memory_quality: float = 0.0,
-    is_list_query: bool = False,
 ) -> int:
     """
     Compute adaptive top_k for retrieval based on confidence, attempt,
@@ -50,12 +49,6 @@ def compute_top_k(
     Returns:
         Adapted top_k value.
     """
-    # List queries fundamentally require broad context up-front, skipping standard depths
-    if is_list_query:
-        adapted = max(base_k, 8)
-        logger.info(f"List query detected: forcing widened top_k={adapted}")
-        return adapted
-
     if attempt == 0:
         # First attempt: always use base
         logger.info(f"Attempt 0: using base top_k={base_k}")

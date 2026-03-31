@@ -191,9 +191,7 @@ def build_context_pack(
     use_expanded: bool = True,
     separator: str = "\n\n",
     reserve_tokens: int = 0,
-    score_key: str = "final_score",
-    avoid_adjacent: bool = True,
-    adjacency_radius: int = 1
+    score_key: str = "final_score"
 ) -> List[Dict[str, Any]]:
     """
     Build a context pack from chunks respecting a token budget.
@@ -224,24 +222,12 @@ def build_context_pack(
 
     # Determine which text field to use for each chunk
     # Prefer context_text if available and use_expanded=True; else text
-    import hashlib
     chunks_with_text = []
-    seen_hashes = set()
-    
     for chunk in chunks:
         text = chunk.get('context_text' if use_expanded else 'text', chunk.get('text', ''))
         if not text:
             logger.debug(f"Chunk {chunk.get('chunk_id', 'unknown')} has empty text, skipping")
             continue
-            
-        # Hash text to eliminate redundant identical context completely
-        text_hash = hashlib.md5(text.strip().lower().encode('utf-8')).hexdigest()
-        if text_hash in seen_hashes:
-            logger.debug(f"Chunk {chunk.get('chunk_id')} is an exact duplicate, dropping to save context.")
-            continue
-            
-        seen_hashes.add(text_hash)
-        
         chunks_with_text.append({
             'chunk': chunk,
             'text': text
@@ -268,10 +254,10 @@ def build_context_pack(
         added_tokens = chunk_tokens + separator_tokens
 
         if total_tokens + added_tokens > available_tokens:
-            # Would exceed budget; skip this chunk but try smaller ones below
+            # Would exceed budget; skip
             logger.debug(f"Chunk {item['chunk'].get('chunk_id')} exceeds budget "
-                         f"({total_tokens + added_tokens} > {available_tokens}), skipping")
-            continue
+                         f"({total_tokens + added_tokens} > {available_tokens}), stopping")
+            break
 
         # Add this chunk
         selected.append(item['chunk'])
@@ -282,85 +268,6 @@ def build_context_pack(
     logger.info(f"Context pack: selected {len(selected)}/{len(chunks_with_text)} chunks, "
                 f"total tokens ~{total_tokens}")
 
-    # Optional: adjacency avoidance to reduce contextual overlap
-    if avoid_adjacent and len(selected) > 1:
-        selected = _apply_adjacency_avoidance(selected, adjacency_radius)
-        # Recompute token count after filtering (we may have removed some)
-        # Not strictly necessary to re-count for return, but good for logging
-        total_tokens = 0
-        for i, c in enumerate(selected):
-            text = c.get('context_text' if use_expanded else 'text', c.get('text', ''))
-            sep = separator if i > 0 else ''
-            total_tokens += _estimate_tokens(text + sep)
-        logger.info(f"After adjacency avoidance: {len(selected)} chunks, ~{total_tokens} tokens")
-
     # Return selected chunks in the order they were added (which is sorted by score descending)
     return selected
-
-
-def _get_chunk_location(chunk: Dict[str, Any]) -> Tuple[Optional[str], Optional[int]]:
-    """Extract (source, chunk_index) from chunk payload."""
-    payload = chunk.get('payload', {})
-    source = payload.get('source')
-    chunk_index = payload.get('chunk_index')
-    if chunk_index is not None:
-        try:
-            chunk_index = int(chunk_index)
-        except (ValueError, TypeError):
-            chunk_index = None
-    return source, chunk_index
-
-
-def _apply_adjacency_avoidance(
-    selected: List[Dict[str, Any]],
-    radius: int = 1
-) -> List[Dict[str, Any]]:
-    """
-    Filter selected chunks to avoid including adjacent chunks from the same document.
-
-    If two chunks are from the same source and their chunk_index differs by <= radius,
-    keep only the higher-scored one. This reduces redundant context from overlapping
-    neighbors.
-
-    Args:
-        selected: List of already selected chunks (sorted by score descending)
-        radius: How many positions away constitute "adjacent" (default 1 = immediate neighbors)
-
-    Returns:
-        Filtered list of chunks with adjacency conflicts removed
-    """
-    logger = get_logger("CONTEXT_PACKER")
-    if not selected or len(selected) <= 1:
-        return selected
-
-    # Build location map: (source, chunk_index) -> chunk
-    kept_chunks = []
-    blocked_positions = set()  # set of (source, chunk_index) to exclude
-
-    for chunk in selected:
-        source, idx = _get_chunk_location(chunk)
-        if source is None or idx is None:
-            # Cannot determine adjacency, keep it
-            kept_chunks.append(chunk)
-            continue
-
-        # Check if this position is blocked due to earlier higher-scored neighbor
-        blocked = False
-        for offset in range(-radius, radius + 1):
-            if offset == 0:
-                continue
-            neighbor_pos = (source, idx + offset)
-            if neighbor_pos in blocked_positions:
-                logger.debug(f"Chunk {chunk.get('chunk_id')} at ({source}, {idx}) "
-                             f"conflicts with neighbor at {neighbor_pos}, dropping")
-                blocked = True
-                break
-
-        if not blocked:
-            kept_chunks.append(chunk)
-            blocked_positions.add((source, idx))
-
-    logger.info(f"Adjacency avoidance: {len(selected)} → {len(kept_chunks)} chunks "
-                f"({len(selected) - len(kept_chunks)} removed due to neighbor overlap)")
-    return kept_chunks
 

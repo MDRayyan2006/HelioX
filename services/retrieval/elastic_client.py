@@ -3,6 +3,7 @@ Elasticsearch client for keyword-based retrieval.
 """
 
 from typing import List, Dict, Any, Optional
+import os
 from elasticsearch import Elasticsearch
 from core.logger import get_logger
 from core.config import get_config
@@ -30,13 +31,20 @@ class ElasticStore:
         import urllib3
         urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
         
-        url = f"https://{host}:{port}"
-        self.es = Elasticsearch(
-            url,
-            basic_auth=("elastic", "CjRL0vg1D2yulxlEAKWk"),
-            verify_certs=False,
-            request_timeout=30
-        )
+        scheme = os.getenv("ELASTIC_SCHEME", "https")
+        elastic_user = os.getenv("ELASTIC_USER", "elastic")
+        elastic_password = os.getenv("ELASTIC_PASSWORD", "")
+        verify_certs = os.getenv("ELASTIC_VERIFY_CERTS", "false").lower() == "true"
+
+        url = f"{scheme}://{host}:{port}"
+        kwargs = {
+            "verify_certs": verify_certs,
+            "request_timeout": 10,
+        }
+        if elastic_password:
+            kwargs["basic_auth"] = (elastic_user, elastic_password)
+
+        self.es = Elasticsearch(url, **kwargs)
 
         # Create index if it doesn't exist
         self._create_index()
@@ -179,7 +187,12 @@ class ElasticStore:
                 self.logger.error(f"Failed to bulk index chunks: {e}")
                 raise
 
-    def search_keywords(self, query: str, top_k: int = 10) -> List[Dict[str, Any]]:
+    def search_keywords(
+        self,
+        query: str,
+        top_k: int = 10,
+        source_hints: Optional[List[str]] = None,
+    ) -> List[Dict[str, Any]]:
         """
         Search for chunks using keyword matching (BM25).
 
@@ -191,18 +204,67 @@ class ElasticStore:
             List of dictionaries with keys: chunk_id, text, score
         """
         try:
-            # Elasticsearch query using match (BM25 by default for text field)
+            normalized_sources: List[str] = []
+            if source_hints:
+                for src in source_hints:
+                    if not src:
+                        continue
+                    src_clean = str(src).strip()
+                    if src_clean and src_clean not in normalized_sources:
+                        normalized_sources.append(src_clean)
+
+            # Phrase-first BM25 query: exact phrase > strict AND > broad OR.
+            search_size = max(top_k, top_k * 3) if normalized_sources else top_k
             body = {
                 "query": {
-                    "match": {
-                        "text": {
-                            "query": query
-                        }
+                    "bool": {
+                        "should": [
+                            {
+                                "match_phrase": {
+                                    "text": {
+                                        "query": query,
+                                        "boost": 4.0
+                                    }
+                                }
+                            },
+                            {
+                                "match": {
+                                    "text": {
+                                        "query": query,
+                                        "operator": "and",
+                                        "boost": 2.0
+                                    }
+                                }
+                            },
+                            {
+                                "match": {
+                                    "text": {
+                                        "query": query,
+                                        "operator": "or",
+                                        "fuzziness": "AUTO"
+                                    }
+                                }
+                            }
+                        ],
+                        "minimum_should_match": 1
                     }
                 },
-                "size": top_k,
-                "_source": ["chunk_id", "text"]  # We don't need metadata for scoring
+                "size": search_size,
+                "_source": ["chunk_id", "text", "metadata"]
             }
+
+            if normalized_sources:
+                body["query"]["bool"]["filter"] = [
+                    {
+                        "bool": {
+                            "should": [
+                                {"terms": {"metadata.source.keyword": normalized_sources}},
+                                {"terms": {"metadata.source": normalized_sources}},
+                            ],
+                            "minimum_should_match": 1,
+                        }
+                    }
+                ]
 
             response = self.es.search(index=self.index_name, body=body)
 
@@ -212,8 +274,18 @@ class ElasticStore:
                 hits.append({
                     "chunk_id": source["chunk_id"],
                     "text": source["text"],
+                    "metadata": source.get("metadata", {}),
                     "score": hit["_score"]  # BM25 score from Elasticsearch
                 })
+
+            if normalized_sources:
+                normalized_set = {s.lower() for s in normalized_sources}
+                hits = [
+                    item for item in hits
+                    if str((item.get("metadata") or {}).get("source", "")).strip().lower() in normalized_set
+                ]
+
+            hits = hits[:top_k]
 
             self.logger.info(f"Found {len(hits)} keyword matches for query: {query[:50]}...")
             return hits

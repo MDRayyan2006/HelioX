@@ -53,13 +53,8 @@ class Retriever:
                 api_key=config.qdrant_api_key,
                 embedder=self.embedder  # Auto-derive vector size from embedder
             )
-            # Only recreate collection if using local memory (testing)
-            # For remote, preserve existing data unless collection doesn't exist
-            recreate = config.qdrant_url is None or config.qdrant_url == "http://localhost:6333"
-            # Use force_recreate to auto-fix dimension mismatches in local mode
-            force = recreate
-            self.vector_store.init_collection(recreate=recreate, force_recreate=force)
-            self._populate_sample_data(self.vector_store)
+            # Never recreate automatically in runtime paths. Recreate can wipe uploaded docs.
+            self.vector_store.init_collection(recreate=False, force_recreate=False)
 
         # Initialize Elasticsearch store with sample data if not provided
         if elastic_store is not None:
@@ -70,9 +65,11 @@ class Retriever:
             # Use config's Elasticsearch host and port if available
             host = getattr(config, 'elastic_host', 'localhost')
             port = getattr(config, 'elastic_port', 9200)
-            self.elastic_store = ElasticStore(host=host, port=port)
-            # Populate with sample data for consistency
-            self.elastic_store._populate_sample_data()
+            try:
+                self.elastic_store = ElasticStore(host=host, port=port)
+            except Exception as e:
+                self.logger.warning(f"Elasticsearch unavailable; continuing with dense retrieval only: {e}")
+                self.elastic_store = None
 
     def _populate_sample_data(self, vector_store: VectorStore) -> None:
         """
@@ -233,10 +230,14 @@ class Retriever:
             self.logger.info("Using cached vector hits")
 
         # Step 3: Keyword search using Elasticsearch
-        self.logger.info(f"Searching Elasticsearch for keywords (top_k={top_k})")
-        # Use the raw query for keyword search
-        elastic_hits = self.elastic_store.search_keywords(query.raw_query, top_k=top_k)
-        self.logger.info(f"Retrieved {len(elastic_hits)} Elasticsearch hits")
+        if self.elastic_store is not None:
+            self.logger.info(f"Searching Elasticsearch for keywords (top_k={top_k})")
+            # Use the raw query for keyword search
+            elastic_hits = self.elastic_store.search_keywords(query.raw_query, top_k=top_k)
+            self.logger.info(f"Retrieved {len(elastic_hits)} Elasticsearch hits")
+        else:
+            elastic_hits = []
+            self.logger.info("Elasticsearch unavailable; skipping BM25 keyword search")
 
         # Step 4: Entity scoring based on algorithm optimized O(1) sets
         keywords_to_use = query.expanded_keywords if query.expanded_keywords else query.keywords

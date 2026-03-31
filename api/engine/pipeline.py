@@ -7,7 +7,7 @@ Supports two modes:
   (when use_agents=True)
 """
 
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 
 from core.logger import get_logger
 from core.telemetry_logger import log_event
@@ -16,8 +16,7 @@ from models.schemas.worker_output import WorkerOutput
 from models.schemas.agent_output import AgentOutput
 from models.schemas.retry_trace import RetryTrace, RetryAttempt
 from services.query.analyzer import analyze_query
-from services.retrieval.ranker import merge_rank
-from services.retrieval.retriever import get_retriever
+from services.retrieval.ranker import apply_coverage_ranking
 from services.retrieval.enhanced_retriever import get_enhanced_retriever
 from services.retrieval.reranker import rerank
 
@@ -40,7 +39,12 @@ EARLY_STOP_CONFIDENCE = 0.9  # Skip retry if confidence exceeds this
 BASE_TOP_K = 3               # Default retrieval depth
 EXPLORATION_RATE = 0.1       # Fraction of attempts to explore (e.g., 1 in 10)
 
-def run_pipeline(raw_query: str, use_agents: bool = False) -> Any:
+def run_pipeline(
+    raw_query: str,
+    use_agents: bool = False,
+    source_hint: Optional[str] = None,
+    source_hints: Optional[List[str]] = None,
+) -> Any:
     """
     Execute the full pipeline end-to-end.
 
@@ -64,9 +68,26 @@ def run_pipeline(raw_query: str, use_agents: bool = False) -> Any:
     pipeline_logger = get_logger("PIPELINE")
     pipeline_logger.info(f"Starting pipeline for query: {raw_query}")
 
+    # Normalize source hints for retrieval scoping.
+    normalized_source_hints: List[str] = []
+    if source_hint and source_hint.strip():
+        normalized_source_hints.append(source_hint.strip())
+    if source_hints:
+        for item in source_hints:
+            if not item:
+                continue
+            item_clean = str(item).strip()
+            if item_clean and item_clean not in normalized_source_hints:
+                normalized_source_hints.append(item_clean)
+
+    cache_query = raw_query
+    if normalized_source_hints:
+        cache_query = f"{raw_query}\n__source_hints__={'|'.join(normalized_source_hints)}"
+
     # --- Check Redis Cache ---
     from core.cache.cache_service import get_cache, set_cache
-    cached_result = get_cache(raw_query)
+    cache_namespace = "multi-agent" if use_agents else "legacy"
+    cached_result = get_cache(cache_query, namespace=cache_namespace)
     if cached_result:
         pipeline_logger.info("Found cached result. Returning immediately.")
         return cached_result
@@ -109,14 +130,10 @@ def run_pipeline(raw_query: str, use_agents: bool = False) -> Any:
             # Memory quality signal for adaptive strategies
             mem_quality = session.get_memory_quality()
 
-            # Analyze query intent up-front so we can adjust early pipeline depths (e.g. LIST depth)
-            structured = analyze_query(current_query)
-            
             # Adaptive retrieval depth (memory-influenced)
             adaptive_k = compute_top_k(
                 prev_confidence, attempt, tuned.top_k,
                 memory_quality=mem_quality,
-                is_list_query=(structured.query_type == "LIST")
             )
             session.record_strategy("depth", f"k={adaptive_k}")
             pipeline_logger.info(f"Adaptive top_k={adaptive_k} (prev_conf={prev_confidence:.2f}, mem_q={mem_quality:.2f})")
@@ -160,56 +177,24 @@ def run_pipeline(raw_query: str, use_agents: bool = False) -> Any:
                 chunk_score_weight=chunk_score_weight,
                 rerank_threshold=tuned.rerank_threshold,
                 use_enhanced=True,
+                source_hint=normalized_source_hints[0] if normalized_source_hints else None,
+                source_hints=normalized_source_hints,
             )
             pipeline_logger.info(f"Retriever returned {len(top_chunks)} chunks")
 
             # Stage X: Context Expansion (expand top_chunks with neighboring context)
-            from services.retrieval.context_expander import expand_chunks_with_context, build_context_pack
+            from services.retrieval.context_expander import expand_chunks_with_context
             from services.retrieval.enhanced_retriever import get_enhanced_retriever
             vector_store = get_enhanced_retriever().vector_store
             top_chunks = expand_chunks_with_context(top_chunks, vector_store)
-            
-            # --- CONTEXT PACKING (Enforcing Strategy Budgets) ---
-            # Shrink and verify dense information down to an acceptable 6000 token limit
-            # This completely stops LLM context-drowning and drops exact hashes.
-            top_chunks = build_context_pack(top_chunks, max_context_tokens=6000)
-            pipeline_logger.info(f"Context Pack filtered down to {len(top_chunks)} final dense chunks")
-
-            # --- RETRIEVAL SUFFICIENCY CHECK ---
-            from services.retrieval.sufficiency_check import check_sufficiency
-            sufficiency = check_sufficiency(
-                query=current_query,
-                structured_query=structured,
-                chunks=top_chunks,
-                worker_outputs=None  # pre-worker, so not available yet
-            )
-            pipeline_logger.info(f"Sufficiency scores: {sufficiency['scores']}")
-            if not sufficiency['sufficient']:
-                pipeline_logger.warning(f"Insufficient context coverage: {sufficiency['missing']}. Triggering incremental deeper retrieval.")
-                deeper_k = min(adaptive_k + 5, 20)
-                # Retrieve additional chunks (incremental, not full replacement)
-                extra_chunks = agent_retrieve(
-                    current_query,
-                    top_k=deeper_k,
-                    retrieval_top_k=100,
-                    chunk_scores=prev_chunk_scores,
-                    chunk_score_weight=chunk_score_weight,
-                    rerank_threshold=tuned.rerank_threshold,
-                    use_enhanced=True,
-                )
-                # Merge incrementally: dedup by chunk_id, keep higher score
-                seen_ids = {c['chunk_id']: c for c in top_chunks}
-                for c in extra_chunks:
-                    cid = c['chunk_id']
-                    if cid not in seen_ids or c.get('final_score', 0) > seen_ids[cid].get('final_score', 0):
-                        seen_ids[cid] = c
-                top_chunks = sorted(seen_ids.values(), key=lambda x: x.get('final_score', 0), reverse=True)
-                # Re-expand and re-pack to enforce token budget
-                top_chunks = expand_chunks_with_context(top_chunks, vector_store)
-                top_chunks = build_context_pack(top_chunks, max_context_tokens=6000)
-                pipeline_logger.info(f"After deeper retrieval + re-pack: {len(top_chunks)} chunks")
+            pipeline_logger.info(f"Expanded {len(top_chunks)} chunks with context")
 
             # Generate worker outputs from retrieved chunks
+            structured = analyze_query(current_query)
+            if normalized_source_hints:
+                structured.constraints = dict(structured.constraints or {})
+                structured.constraints["source_hint"] = normalized_source_hints[0]
+                structured.constraints["source_hints"] = normalized_source_hints
             worker_outputs = process_chunks(structured, top_chunks, parallel=True)
             pipeline_logger.info(f"Generated {len(worker_outputs)} worker outputs")
 
@@ -221,10 +206,14 @@ def run_pipeline(raw_query: str, use_agents: bool = False) -> Any:
                 f"conflicts={adjudication.conflicts_detected}"
             )
 
-            # Compose final answer from adjudication (pass chunks for full context evidence)
+            # Compose final answer from adjudication
             s_dict = structured.dict()
             s_dict["raw_query"] = current_query
-            composed = compose_answer(adjudication.dict(), s_dict, chunks=top_chunks)
+            s_dict["retrieved_context"] = [
+                c.get("context_text") or c.get("text", "")
+                for c in top_chunks if isinstance(c, dict)
+            ]
+            composed = compose_answer(adjudication.dict(), s_dict)
             answer = composed["answer"]
             pipeline_logger.info("Composed final answer from adjudicated claims")
 
@@ -497,7 +486,7 @@ def run_pipeline(raw_query: str, use_agents: bool = False) -> Any:
             "confidence": float(calibrated_confidence),
             "citations": full_citations
         }
-        set_cache(raw_query, final_response)
+        set_cache(cache_query, final_response, namespace=cache_namespace)
 
         return AgentOutput(
             answer=answer,
@@ -518,16 +507,20 @@ def run_pipeline(raw_query: str, use_agents: bool = False) -> Any:
     structured_query = analyze_query(raw_query)
     query_logger.info(f"Extracted {len(structured_query.keywords)} keywords: {structured_query.keywords}")
     query_logger.info(f"Extracted {len(structured_query.entities)} entities: {structured_query.entities}")
+    if normalized_source_hints:
+        structured_query.constraints = dict(structured_query.constraints or {})
+        structured_query.constraints["source_hint"] = normalized_source_hints[0]
+        structured_query.constraints["source_hints"] = normalized_source_hints
 
     # Stage 2: Retrieval (real vector search)
     retrieval_logger.info("Starting retrieval")
     # Use enhanced retriever for better context retrieval
     retriever = get_enhanced_retriever()
-    entity_hits, vector_hits = retriever.retrieve(structured_query, top_k=50)
+    merged_hits, vector_hits = retriever.retrieve(structured_query, top_k=50)
 
     # Stage 3: Ranking
-    ranking_logger.info("Merging and ranking results")
-    ranked_results = merge_rank(entity_hits, vector_hits)
+    ranking_logger.info("Applying diversity ranking to enhanced retrieval results")
+    ranked_results = apply_coverage_ranking(merged_hits)
     ranking_logger.info(f"Ranked {len(ranked_results)} merged results")
 
     # Log top 5 for debugging (pre-rerank)
@@ -537,12 +530,18 @@ def run_pipeline(raw_query: str, use_agents: bool = False) -> Any:
             f"vector={result['vector_score']}, entity={result['entity_score']}"
         )
 
-    # Stage 3.5: Rerank top candidates with cross-encoder
+    # Stage 3.5: Rerank top candidates with cross-encoder (skip on strong exact lexical matches)
     reranking_logger = get_logger("RERANKING")
-    reranking_logger.info("Reranking top 10 candidates with cross-encoder")
-    top_n_for_rerank = min(10, len(ranked_results))
-    reranked = rerank(raw_query, ranked_results[:top_n_for_rerank], top_k=3)
-    reranking_logger.info(f"Reranked {len(reranked)} results")
+    top_lexical = ranked_results[0].get("lexical_score", 0.0) if ranked_results else 0.0
+    top_score = ranked_results[0].get("final_score", 0.0) if ranked_results else 0.0
+    if ranked_results and top_lexical >= 0.75 and top_score >= 0.8:
+        reranked = ranked_results[:3]
+        reranking_logger.info("Skipped cross-encoder rerank due to high lexical confidence")
+    else:
+        reranking_logger.info("Reranking top 10 candidates with cross-encoder")
+        top_n_for_rerank = min(10, len(ranked_results))
+        reranked = rerank(raw_query, ranked_results[:top_n_for_rerank], top_k=3)
+        reranking_logger.info(f"Reranked {len(reranked)} results")
 
     # Log rerank results
     for i, result in enumerate(reranked[:5], 1):
@@ -570,6 +569,10 @@ def run_pipeline(raw_query: str, use_agents: bool = False) -> Any:
     # Stage 5: Worker Agent (parallel, deterministic)
     worker_logger.info("Generating worker outputs with parallel worker agents")
     structured = analyze_query(raw_query)
+    if normalized_source_hints:
+        structured.constraints = dict(structured.constraints or {})
+        structured.constraints["source_hint"] = normalized_source_hints[0]
+        structured.constraints["source_hints"] = normalized_source_hints
     worker_outputs = process_chunks(structured, top_3, parallel=True)
     for output in worker_outputs:
         worker_logger.info(
@@ -584,6 +587,10 @@ def run_pipeline(raw_query: str, use_agents: bool = False) -> Any:
     pipeline_logger.info("Synthesizing lightweight factual answer...")
     s_dict = structured.dict()
     s_dict["raw_query"] = raw_query
+    s_dict["retrieved_context"] = [
+        c.get("context_text") or c.get("text", "")
+        for c in top_3 if isinstance(c, dict)
+    ]
     composed = compose_answer(adjudication.dict(), s_dict, use_lightweight=True)
     answer = composed["answer"]
 
@@ -593,7 +600,7 @@ def run_pipeline(raw_query: str, use_agents: bool = False) -> Any:
         "confidence": adjudication.confidence if adjudication else 0.0,
         "citations": adjudication.citations if adjudication and hasattr(adjudication, "citations") else []
     }
-    set_cache(raw_query, final_response)
+    set_cache(cache_query, final_response, namespace=cache_namespace)
 
     return AgentOutput(answer=answer, worker_outputs=worker_outputs, adjudication=adjudication)
 

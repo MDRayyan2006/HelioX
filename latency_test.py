@@ -8,9 +8,11 @@ def measure_latency():
     
     query = StructuredQuery(
         raw_query="What is the architecture of the RAG system?",
-        intent="informational",
+        query_type="FACTUAL",
         keywords=["architecture", "RAG", "system"],
-        entities=["RAG"]
+        entities=["RAG"],
+        constraints={},
+        expanded_keywords=[]
     )
     
     start_time = time.time()

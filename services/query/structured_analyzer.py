@@ -119,10 +119,17 @@ def _extract_keywords(text: str) -> List[str]:
     """Extract lowercase keywords by removing stopwords and punctuation."""
     # Convert to lowercase and remove punctuation
     normalized = re.sub(r'[^\w\s]', ' ', text.lower())
-    # Split into words and filter stopwords
     words = normalized.split()
-    keywords = [word for word in words if word not in STOPWORDS and len(word) > 1]
-    return keywords
+
+    expanded_words: List[str] = []
+    for word in words:
+        expanded_words.append(word)
+        parts = re.findall(r"[a-z]+|\d+", word)
+        if len(parts) > 1:
+            expanded_words.extend(parts)
+
+    keywords = [word for word in expanded_words if word not in STOPWORDS and len(word) > 1]
+    return list(dict.fromkeys(keywords))
 
 
 def _extract_temporal_constraint(query: str) -> Optional[str]:
